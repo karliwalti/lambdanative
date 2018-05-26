@@ -92,7 +92,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (redcap:jsonstr->list str)
   (if (or (list? str) (fx< (string-length str) 3) (not (string-contains str "[{")) (not (string-contains str "}]")))
     ;; Determine whether content just empty or whether it was improperly formatted (possibly incomplete)
-    (if (and (string? str) (fx>= (string-length str) 3)) #f (list))
+    (if (and (string? str) (fx>= (string-length str) 3) (not (string-contains str "[]"))) #f (list))
     (let* ((index (string-contains str "[{"))
            ;; Remove anything outside brackets first
            (output (json-decode (substring str index (string-length str)))))
@@ -123,38 +123,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Helper function which makes REDCap EAV XML given a record identifier and list of values
 (define (redcap:list->xmlstr record event data . xargs)
-  (let* ((instance (redcap:arg 'instance xargs #f))
-        (instrument (redcap:arg 'instrument xargs #f))
-        (repeat (if (and instance instrument) ;;add repeat information if provided
-                     (string-append     "<redcap_repeat_instrument>" instrument "</redcap_repeat_instrument>"
-                                        "<redcap_repeat_instance>" instance "</redcap_repeat_instance>") "")))
-  	(string-append "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" "\r\n"
-    "<records>" "\r\n"
-    (let loop ((i 0) (str ""))
-      (if (= i (length data)) str
-  	(loop (+ i 1) 
-         (let* ((lpair (list-ref data i))
-                (field (car lpair))
-                (fieldname (if (string? field) field (symbol->string field)))
-                (selections (if (list? lpair) (length (cdr lpair)) 1))
-                ;;(val (if (list? lpair) (cadr lpair) (cdr lpair)))
-                ;;(value (if (number? val) (number->string val) val))
-                )
-           ;;(display selections) (display " ") (display lpair)  (display "\n")
-            (let loop ((p (cdr lpair)) (st str))
-             (let* ((val (if (list? p) (car p) p))
-                   (value (if (number? val) (number->string val) val))
-                    (s (string-append st "<item>"
-		    "<record>" record "</record>" 
-		      repeat                                                     
-		    "<redcap_event_name>" event "</redcap_event_name>"
-		    "<field_name>" fieldname "</field_name>"
-		    "<value>" value "</value>"
-		    "</item>" "\r\n")))
-          ;; (display st) (display " ")(display p)(display " ") (display val)  (display "\n")
-             (if (and (list? p) (> (length p) 1)) (loop (cdr p) s )
-               s )))))))
-		    "</records>"))
+  (let* ((instance   (redcap:arg 'instance   xargs #f))
+         (instrument (redcap:arg 'instrument xargs #f))
+         (repeat (if (and instance instrument) ;;add repeat information if provided
+                     (string-append "<redcap_repeat_instrument>" instrument "</redcap_repeat_instrument>"
+                                    "<redcap_repeat_instance>" instance "</redcap_repeat_instance>") "")))
+    (string-append
+      "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" "\r\n"
+      "<records>" "\r\n"
+      (let loop ((i 0) (str ""))
+        (if (= i (length data)) str
+            (loop (+ i 1)
+                  (let* ((lpair     (list-ref data i))
+                         (field     (car lpair))
+                         (fieldname (if (string? field) field (symbol->string field)))
+                         (values    (cdr lpair))
+                         (itemize   (lambda (v)
+                                      (let ((value (if (number? v) (number->string v) v)))
+                                        (string-append
+                                          "<item>"
+                                          "<record>" record "</record>"
+                                          repeat
+                                          "<redcap_event_name>" event "</redcap_event_name>"
+                                          "<field_name>" fieldname "</field_name>"
+                                          "<value>" value "</value>"
+                                          "</item>" "\r\n")))))
+                    (string-append str (if (list? values)
+                      (apply string-append (map itemize values))
+                      (itemize values)))))))
+      "</records>"))
 )
 
 ;; Helper function to build the http request string
@@ -416,7 +413,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         (let ((datalist (redcap:jsonstr->list output)))
                           (cond
                             ((not (list? datalist))
-                              ;; If no list returned, json not properly formatted
+                               ;; If no list returned, json not properly formatted
                               (log-error "REDCap error: Incomplete json" msg)
                               #f)
                             ((and (fx> (length datalist) 0) (string=? (caaar datalist) "error\""))
@@ -507,8 +504,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                       (if (not instrument) (log-warning "Exported REDcap instrument " (car forms) " is not repeatable"))
                       (if (fx> instance maxinstance) (set! maxinstance instance))
                       (loop (cdr entries))))) (fx+ maxinstance 1))
-           (begin (log-warning "Exported REDcap record has no repeated entry") 0))
-       (begin (log-warning "Cannot retrieve instance number from REDCap. I assume this is the first entry.") 1)))
+           (begin (log-warning "Exported REDcap record has no repeated entry yet") 1))
+       (begin (log-error "Cannot retrieve instance number from REDCap.") #f)))
 )
 
 
@@ -664,8 +661,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
              (if filesize filesize 0) (u8vector-length close-vector))) "\r\n"
            "Content-Type: " redcap:content-type-file "; boundary=" bd "\r\n" "\r\n"
              ct at rd fo ev re fd tk dt))))
-
-   ;; Check if we have a valid connection before proceeding
+    ;; Check if we have a valid connection before proceeding
     (if (and filesize (fx= (httpsclient-open host) 1))
       (let* ((fh (open-input-file filename))
              (buflen 100000)
@@ -688,19 +684,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (httpsclient-send close-vector)
         (redcap:data-clear!)
         (let loop ((n #f))
-          (if (and n (fx<= n 0))
+          (if (and n (> n 0))
+              (redcap:data-append! (subu8vector redcap:buf 0 n)))
+          (if (and n (fx< n 1000)) ;;stop if one buffer 1024 filled
             (begin
               (httpsclient-close)
               (let ((msg (redcap:split-headerbody (redcap:data->string))))
                 (redcap:error-check msg)
-              )
-            ) (begin
-            (if (and n (> n 0))
-              (redcap:data-append! (subu8vector redcap:buf 0 n)))
+              )) 
             (loop (httpsclient-recv redcap:buf))
-          ))
-        )
-      )
+          )))
       (begin
         (if (not filesize)
           (let ((str (string-append "File " filename " not found."))) (log-error str))
@@ -791,7 +784,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (httpsclient-send (string->u8vector request-str))
         (redcap:data-clear!)
         (let loop ((n #f))
-          (if (and n (fx<= n 0))
+          (if (and n (fx< n (length redcap:buf))) ;;stop if one buffer filled
             (begin
               (httpsclient-close)
               (let ((msg (redcap:split-headerbody (redcap:data->string))))

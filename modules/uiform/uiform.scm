@@ -750,13 +750,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                        (begin
                          (set! fgcolor (uiget 'color-default))
                          default)))
-         (ampmvalue (if id (xxget loc ampm #f)))
+         (ampmvalue (if id (xxget loc 'ampm #f)))
          (defaultampm (glgui:uiform-arg args 'defaultampm "AM"))
          (ampmvaluestr (if (string? ampmvalue)
                              ampmvalue
                              (begin
                                ;; If no ampmvalue, set it - always has a value displayed
-                               (if ampm (xxset loc ampm defaultampm))
+                               (if ampm (xxset loc 'ampm defaultampm))
                                defaultampm)))
          (defcolor (uiget 'color-default))
          (selcolor (uiget 'color-select))
@@ -798,10 +798,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       (let ((ampmw (* w 0.2)))
         (if (> mx (+ x (- w ampmw 4)))
           (let* ((ampm (glgui:uiform-arg args 'ampm #f))
-                 (ampmvalue (if id (xxget loc ampm #f)))
+                 (ampmvalue (if id (xxget loc 'ampm #f)))
                  (defaultampm (glgui:uiform-arg args 'defaultampm "AM"))
                  (ampmvaluestr (if (string? ampmvalue) ampmvalue defaultampm)))
-            (xxset loc ampm (if (string=? ampmvaluestr "PM") "AM" "PM")))
+            (if ampm (xxset loc 'ampm (if (string=? ampmvaluestr "PM") "AM" "PM"))))
           (let* ((idvalue (if id (xxget loc id #f)))
                  (vallen  (if (string? idvalue) (string-length idvalue) 0)))
             (uiset 'focusid id)
