@@ -1134,6 +1134,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (uiform-register 'checkbox glgui:uiform-check-draw glgui:uiform-check-input)
 
+
+
 ;; --------------
 ;; drop down
 
@@ -1387,6 +1389,91 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (uiform-register 'checklist glgui:uiform-checklist-draw glgui:uiform-checklist-input)
   
+
+;; new list filled with n elements containing s, s+i, s+2*i, ... s+(n-1)*i
+(define (make-list-increment s n i)
+  (if (zero? n)
+    '()
+    (cons s (make-list-increment (+ s i) (- n 1) i))
+  ))
+
+(define (sub lst k) (map (lambda (x) (abs (- x k))) lst))
+
+;; get idx of element in list that is closest to val
+(define (get-list-closest lst v)
+  (let* ((mlst (sub lst v))
+         (min (list-min mlst)))
+    (list-pos mlst min))
+ ) 
+;; -------------
+;; slider
+
+(define (glgui:uiform-slider-draw x y w . args)
+  (let* ((h (+ (uiget 'rowh) 20) )
+         (id (glgui:uiform-arg args 'id #f))
+         (min (glgui:uiform-arg args 'min 0))
+         (max (glgui:uiform-arg args 'max 100))
+         (labels (glgui:uiform-arg args 'labels '("" "")))
+         ;;(stepsize (glgui:uiform-arg args 'stepsize 1))
+         (stepnum (- max min))
+        ;; (raw (if (glgui:uiform-arg args 'values #f) (glgui:uiform-arg args 'raw #f) #f))  ;;make sure that when raw is defined value is too!
+      	 (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
+         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
+  	 (loc (glgui:uiform-arg args 'location 'db))
+         (align (glgui:uiform-arg args 'align 'center))
+         (fnt (uiget 'fnt))
+         (req (glgui:uiform-arg args 'required #f))
+         (defaultentries (glgui:uiform-arg args 'default (/ stepnum 2)))
+         (defaultvalues (glgui:uiform-arg args 'values  (make-list-natural  min (+ 1 stepnum))))
+         (actualvalue (xxget loc id (list defaultentries)))
+       ;;  (actualentries  (if raw  (glgui:uiform-values-get defaultentries defaultvalues actualvalue) actualvalue)) ;;f pos (if raw  (sublist defaultentries pos pos) actualvalue) '()))
+       ;;  (mergedentries (let loop ((es (append defaultentries actualentries))(res '()))
+       ;;    (if (= (length es) 0) res (loop (cdr es) (append res (if (member (car es) res) '() (list (car es))))))))
+       ;;  (mergedselections (let loop ((es mergedentries)(res '()))
+       ;;    (if (= (length es) 0) res (loop (cdr es) (append res (if (member (car es) actualentries) '(#t) '(#f)))))))
+       ;;  (noentries (length mergedentries))
+  
+         (boxcolor (uiget 'color-default)))
+     
+     (uiset idvalues defaultvalues)
+     (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
+     ;;(let loop ((es (reverse mergedentries))(ss (reverse mergedselections))(dy 0))
+       (begin
+         (if (uiget 'sanemap)
+           (begin (let* ((sw (* w 0.8))
+                         (bw (* h 0.8))
+               		 (bh (* h 0.8))
+                         (bx (+ x (* (/ sw stepnum) (- (car actualvalue) min))(- (* w 0.1) (/ bh 2)) ))
+                 	 (by (+ y  (* h 0.1)))
+              		 (ypos (-  y  (* h 0.1 1)))
+                         (i (/ sw stepnum))
+                         (mergedentries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
+             (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
+	     (glgui:draw-box bx by bw bh White)  ;; sliderbox
+         (uiset idmerged mergedentries)
+         (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
+         (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
+         
+         ))))
+      h
+  ))
+      
+
+(define (glgui:uiform-slider-input type x y . args)
+  (let* ((id (glgui:uiform-arg args 'id #f))
+         ;; (stepsize (glgui:uiform-arg args 'stepsize 1))
+       ;;  (raw (if (glgui:uiform-arg args 'values #f) (glgui:uiform-arg args 'raw #f) #f))  ;;make sure that when raw is defined value is too! ;; store raw (value) instead of label (entry)
+       (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
+         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
+         (loc (glgui:uiform-arg args 'location 'db))
+         (entries (uiget idmerged))  ;; identifier in widget holds all entries
+         ;;(actual (xxget loc id '()))  ;; identifier in database holds actual entries
+         (values (uiget idvalues))
+         (actual (list-ref values(get-list-closest entries x))))
+   (if  id   (begin (uiset 'nodemap '()) (xxset loc id (list actual)))) ;; (uiform-db-listremove! id element)
+     ))
+
+(uiform-register 'slider glgui:uiform-slider-draw glgui:uiform-slider-input)
 ;; -------------
 ;; uiform graph
 
