@@ -1413,6 +1413,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (id (glgui:uiform-arg args 'id #f))
          (min (glgui:uiform-arg args 'min 0))
          (max (glgui:uiform-arg args 'max 100))
+         (shownumber (glgui:uiform-arg args 'number #t))
          (labels (glgui:uiform-arg args 'labels '("" "")))
          ;;(stepsize (glgui:uiform-arg args 'stepsize 1))
          (stepnum (- max min))
@@ -1442,7 +1443,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                          (i (/ sw stepnum))
                          (mergedentries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
              (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
-	     (glgui:draw-box bx by bw bh White)  ;; sliderbox
+	     (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox
+         (if shownumber    (glgui:draw-text-center  bx  by bw bh (number->string (car actualvalue)) fnt Black))
          (uiset idmerged mergedentries)
          (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
          (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
