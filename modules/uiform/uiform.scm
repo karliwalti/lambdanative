@@ -1396,12 +1396,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     '()
     (cons s (make-list-increment (+ s i) (- n 1) i))
   ))
-
-(define (sub lst k) (map (lambda (x) (abs (- x k))) lst))
+;; absolute substraction of each list element
+(define (asub lst k) (map (lambda (x) (abs (- x k))) lst))
 
 ;; get idx of element in list that is closest to val
 (define (get-list-closest lst v)
-  (let* ((mlst (sub lst v))
+  (let* ((mlst (asub lst v))
          (min (list-min mlst)))
     (list-pos mlst min))
  ) 
@@ -1426,13 +1426,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (defaultentries (glgui:uiform-arg args 'default (/ stepnum 2)))
          (defaultvalues (glgui:uiform-arg args 'values  (make-list-natural  min (+ 1 stepnum))))
          (actualvalue (xxget loc id (list defaultentries)))
-       ;;  (actualentries  (if raw  (glgui:uiform-values-get defaultentries defaultvalues actualvalue) actualvalue)) ;;f pos (if raw  (sublist defaultentries pos pos) actualvalue) '()))
-       ;;  (mergedentries (let loop ((es (append defaultentries actualentries))(res '()))
-       ;;    (if (= (length es) 0) res (loop (cdr es) (append res (if (member (car es) res) '() (list (car es))))))))
-       ;;  (mergedselections (let loop ((es mergedentries)(res '()))
-       ;;    (if (= (length es) 0) res (loop (cdr es) (append res (if (member (car es) actualentries) '(#t) '(#f)))))))
-       ;;  (noentries (length mergedentries))
-  
          (boxcolor (uiget 'color-default)))
      
      (uiset idvalues defaultvalues)
@@ -1453,7 +1446,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (uiset idmerged mergedentries)
          (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
          (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
-         
+         (if (> (length labels) 2) (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (/ bh 2)) (- (* w 0.8) bw) h (cadr  labels) fnt White))
          ))))
       h
   ))
@@ -1461,9 +1454,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (define (glgui:uiform-slider-input type x y . args)
   (let* ((id (glgui:uiform-arg args 'id #f))
-         ;; (stepsize (glgui:uiform-arg args 'stepsize 1))
-       ;;  (raw (if (glgui:uiform-arg args 'values #f) (glgui:uiform-arg args 'raw #f) #f))  ;;make sure that when raw is defined value is too! ;; store raw (value) instead of label (entry)
-       (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
+         (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
          (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
          (loc (glgui:uiform-arg args 'location 'db))
          (entries (uiget idmerged))  ;; identifier in widget holds all entries
