@@ -87,8 +87,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     }
 
 // 20100422: fiddling around with this seems to have no effect on device performance
-//	animationInterval = 1.0 / 60.0;
-    animationInterval = 1.0 / 20.0;
+	animationInterval = 1.0 / 60.0;
+//    animationInterval = 1.0 / 20.0;
   }
 
 #ifdef USE_MULTITOUCH
