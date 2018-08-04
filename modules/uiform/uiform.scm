@@ -1400,7 +1400,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (asub lst k) (map (lambda (x) (abs (- x k))) lst))
 
 ;; get idx of element in list that is closest to val
-(define (get-list-closest lst v)
+(define (list-closest lst v)
   (let* ((mlst (asub lst v))
          (min (list-min mlst)))
     (list-pos mlst min))
@@ -1413,25 +1413,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (id (glgui:uiform-arg args 'id #f))
          (min (glgui:uiform-arg args 'min 0))
          (max (glgui:uiform-arg args 'max 100))
-         (shownumber (glgui:uiform-arg args 'number #t))
-         (labels (glgui:uiform-arg args 'labels '("" "")))
+         (shownumber (glgui:uiform-arg args 'number #t))  ;;display value of slider
+         (labels (glgui:uiform-arg args 'labels '("" ""))) ;; labels for the slider. needs min 2, max3 strings
          ;;(stepsize (glgui:uiform-arg args 'stepsize 1))
-         (stepnum (- max min))
-        ;; (raw (if (glgui:uiform-arg args 'values #f) (glgui:uiform-arg args 'raw #f) #f))  ;;make sure that when raw is defined value is too!
-      	 (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
-         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
+         (stepnum (fx- max min))
+      	 (identries (string-append (if (string? id) id (symbol->string id)) ":entries")) ;;stores the gui position
+         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values")) ;;stores the slider value
   	 (loc (glgui:uiform-arg args 'location 'db))
          (align (glgui:uiform-arg args 'align 'center))
          (fnt (uiget 'fnt))
          (req (glgui:uiform-arg args 'required #f))
-         (defaultentries (glgui:uiform-arg args 'default (/ stepnum 2)))
-         (defaultvalues (glgui:uiform-arg args 'values  (make-list-natural  min (+ 1 stepnum))))
-         (actualvalue (xxget loc id (list defaultentries)))
+         (defaultvalue (glgui:uiform-arg args 'default (fx/ stepnum 2)))
+         (stepvalues  (make-list-natural  min (+ 1 stepnum)))
+         (actualvalue (xxget loc id (list defaultvalue)))
          (boxcolor (uiget 'color-default)))
      
-     (uiset idvalues defaultvalues)
+     (uiset idvalues stepvalues)
      (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
-     ;;(let loop ((es (reverse mergedentries))(ss (reverse mergedselections))(dy 0))
        (begin
          (if (uiget 'sanemap)
            (begin (let* ((sw (* w 0.8))
@@ -1441,11 +1439,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                  	 (by (+ y  (* h 0.1)))
               		 (ypos (-  y  (* h 0.1 1)))
                          (i (/ sw stepnum))
-                         (mergedentries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
-             (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
-	     (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox
+                         (entries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
+	 (uiset identries entries)
+         (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
+	 (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox ;;currently always White
          (if shownumber    (glgui:draw-text-center  bx  by bw bh (number->string (car actualvalue)) fnt Black))
-         (uiset idmerged mergedentries)
+         ;; draw labels
          (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
          (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
          (if (> (length labels) 2) (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (/ bh 2)) (- (* w 0.8) bw) h (cadr  labels) fnt White))
@@ -1456,14 +1455,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (define (glgui:uiform-slider-input type x y . args)
   (let* ((id (glgui:uiform-arg args 'id #f))
-         (idmerged (string-append (if (string? id) id (symbol->string id)) ":merged"))
+         (identries (string-append (if (string? id) id (symbol->string id)) ":entries"))
          (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
          (loc (glgui:uiform-arg args 'location 'db))
-         (entries (uiget idmerged))  ;; identifier in widget holds all entries
-         ;;(actual (xxget loc id '()))  ;; identifier in database holds actual entries
+         (entries (uiget identries))  ;; identifier in widget holds all entries
+         ;;(actual (xxget loc id '()))  ;; current position not needed
          (values (uiget idvalues))
-         (actual (list-ref values(get-list-closest entries x))))
-   (if  id   (begin (uiset 'nodemap '()) (xxset loc id (list actual)))) ;; (uiform-db-listremove! id element)
+         (actual (list-ref values (list-closest entries x))))
+   (if  id   (begin (uiset 'nodemap '()) (xxset loc id (list actual)))) ;; add new position of slider
      ))
 
 (uiform-register 'slider glgui:uiform-slider-draw glgui:uiform-slider-input)
