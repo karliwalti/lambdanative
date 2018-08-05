@@ -1423,7 +1423,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (align (glgui:uiform-arg args 'align 'center))
          (fnt (uiget 'fnt))
          (req (glgui:uiform-arg args 'required #f))
-         (defaultvalue (glgui:uiform-arg args 'default (fx/ stepnum 2)))
+         (defaultvalue (glgui:uiform-arg args 'default (/ stepnum 2)))
          (stepvalues  (make-list-natural  min (+ 1 stepnum)))
          (actualvalue (xxget loc id (list defaultvalue)))
          (boxcolor (uiget 'color-default)))
