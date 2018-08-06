@@ -817,8 +817,8 @@ make_setup_profile()
     echo "=== configured to build $SYS_APPNAME version $SYS_APPVERSION for $SYS_PLATFORM on $SYS_HOSTPLATFORM in $SYS_MODE mode"
   fi
   if [ "$SYS_MODE" = "release" ]; then
-    SYS_IOSCERT="iPhone Distribution"
-    SYS_IOSPROVISIONING="Distribution"
+    SYS_IOSCERT=`echo $SYS_IOSRELCERT`
+    SYS_IOSPROVISIONING=`echo $SYS_IOSMOBILEPROVISION`
   else
     SYS_IOSCERT="iPhone Developer"
   fi
