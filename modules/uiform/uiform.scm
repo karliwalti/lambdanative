@@ -1419,35 +1419,36 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (stepnum (fx- max min))
       	 (identries (string-append (if (string? id) id (symbol->string id)) ":entries")) ;;stores the gui position
          (idvalues (string-append (if (string? id) id (symbol->string id)) ":values")) ;;stores the slider value
-  	 (loc (glgui:uiform-arg args 'location 'db))
+  	     (loc (glgui:uiform-arg args 'location 'db))
          (align (glgui:uiform-arg args 'align 'center))
          (fnt (uiget 'fnt))
          (req (glgui:uiform-arg args 'required #f))
          (defaultvalue (glgui:uiform-arg args 'default (/ stepnum 2)))
          (stepvalues  (make-list-natural  min (+ 1 stepnum)))
-         (actualvalue (xxget loc id (list defaultvalue)))
+         (actualvalue (xxget loc id '()))
          (boxcolor (uiget 'color-default)))
-     
      (uiset idvalues stepvalues)
      (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
-       (begin
-         (if (uiget 'sanemap)
-           (begin (let* ((sw (* w 0.8))
-                         (bw (* h 0.8))
-               		 (bh (* h 0.8))
-                         (bx (+ x (* (/ sw stepnum) (- (car actualvalue) min))(- (* w 0.1) (/ bh 2)) ))
-                 	 (by (+ y  (* h 0.1)))
-              		 (ypos (-  y  (* h 0.1 1)))
-                         (i (/ sw stepnum))
-                         (entries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
-	 (uiset identries entries)
+     (if (uiget 'sanemap)
+          (let* ((v (if (null? actualvalue) (list defaultvalue) actualvalue))
+                 (sw (* w 0.8))
+                 (bw (* h 0.8))
+               	 (bh (* h 0.8))
+                 (bx (+ x (* (/ sw stepnum) (- (car v) min))(- (* w 0.1) (/ bh 2)) ))
+                 (by (+ y  (* h 0.1)))
+              	 (ypos (-  y  (* h 0.1 1)))
+                 (i (/ sw stepnum))
+                 (entries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
+          ;;  (display labels)
+	     (uiset identries entries)
          (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
-	 (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox ;;currently always White
-         (if shownumber    (glgui:draw-text-center  bx  by bw bh (number->string (car actualvalue)) fnt Black))
+	     (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox ;;currently always White
+         (if (and shownumber (not (null? actualvalue)))   (glgui:draw-text-center  bx  by bw bh (number->string (car v)) fnt Black))
          ;; draw labels
+         (if (fx> (length labels) 1) (begin
          (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
          (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
-         (if (> (length labels) 2) (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (/ bh 2)) (- (* w 0.8) bw) h (cadr  labels) fnt White))
+         (if (fx> (length labels) 2) (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (/ bh 2)) (- (* w 0.8) bw) h (cadr  labels) fnt White))
          ))))
       h
   ))
