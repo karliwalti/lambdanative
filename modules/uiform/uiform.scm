@@ -823,13 +823,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                                           (xxset floc fid (string-append (substring str 0 1) (substring str 2 3) ":" (substring str 3 5))))
                                       ((fx> len 5)
                                          (xxset floc fid (substring str 0 5)))))
-                                 (let* ((ss (xxget floc fid))(len (string-length ss))
-                                        
+                                 (let* ((ss (xxget floc fid))
+                                        (len (string-length ss))
                                         (cindex (string-index ss #\:))
                                          (min (if (and cindex (> len (+ cindex 2))) (string->number (substring ss (+ cindex 1) (+ cindex 3))) 0))
                                          (hou  (if (and cindex (fx= cindex 2)) (string->number (substring ss 0 2)) 0)))
                                     (if
-                                     (or  (> min 59)(> hou 23)) (xxset 'st 'timewarning #t ) (xxset 'st 'timewarning #f ))
+                                     (or  (> min 59)(> hou 23)(< len 4)) (xxset 'st 'timewarning #t ) (xxset 'st 'timewarning #f ))
                                      )
                                  ))
             (uiset 'toggle #f)
