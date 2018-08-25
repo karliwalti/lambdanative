@@ -119,7 +119,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (stset 'required (append curentry  (list (list ids (if (< val 0) 0 val)))))))
 )
 
-;; puts id and vertical position of required fields into store
+;; removes id and vertical position of required fields from store
 (define (uiform-required-clear id )
   (let* ((curentry (stget 'required  '()))
          (ids (if (symbol? id) id (string->symbol id)))
@@ -774,7 +774,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        (if ampm (begin (glgui:draw-box (+ x (- w ampmw 2)) y ampmw h defcolor)
        (glgui:draw-text-center (+ x (- w ampmw 2)) y ampmw h ampmvaluestr fnt White)))
        (if idvaluestr (glgui:draw-text-left (+ x (* w indent) 10) y (- (* w (- 1. indent)) ampmw 10) h idvaluestr fnt fgcolor))
-       (if warning (glgui:draw-text-left (+ x (* w indent)) (+ y h) (- (* w (- 1. indent)) ampmw 4) h "Wrong time format!" fnt Red))
+       (if warning (glgui:draw-text-left (+ x (* w indent)) (+ y h) (- (* w (- 1. indent)) ampmw 4) h (glgui:uiform-arg args 'timewarning "Wrong time format!") fnt Red))
        (if hasfocus
           (let* ((cx (+ x (* w indent) 10 txtw 2))
                  (cy (+ y (/ (- h txth) 2.)))
@@ -1527,15 +1527,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content (uiget 'modal-content))
          (modal-height (uiget 'modal-height))
          (color-background (uiget 'color-low))
+         (color-box (uiget 'modal-boxcol))
+         (color-fnt (uiget 'modal-fntcol))
          (color-button (uiget 'color-default))
          (button1str (car (cadr content)))
          (button2str (if (= (length content) 3) (car (caddr content)) #f)))
     (glgui:draw-box x y w h color-background)
-    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height DarkViolet)
+    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height color-box)
     (let loop ((ss (reverse (string-split-width (car content) (fix (* 0.7 w)) fnt)))
                (ypos (+ y (* 0.5 h))))
       (if (fx> (length ss) 0) (begin
-        (glgui:draw-text-center x ypos w fnth (car ss) fnt White)  ;; XX
+        (glgui:draw-text-center x ypos w fnth (car ss) fnt color-fnt)  ;; XX
         (loop (cdr ss) (+ ypos fnth)))))
     (let ((bw (* 0.2 w))
           (bh (uiget 'rowh))
@@ -1543,10 +1545,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           (bx2 (+ x (* 0.6 w)))
           (by (+ y (* 0.5 (- h modal-height)) (* 0.1 modal-height))))
       (glgui:draw-box bx1 by bw bh color-button)
-      (glgui:draw-text-center  bx1 by bw bh button1str fnt White)
+      (glgui:draw-text-center  bx1 by bw bh button1str fnt color-fnt)
       (if button2str (begin 
         (glgui:draw-box bx2 by bw bh color-button)
-        (glgui:draw-text-center  bx2 by bw bh button2str fnt White)
+        (glgui:draw-text-center  bx2 by bw bh button2str fnt color-fnt)
       ))
     )
   ))
@@ -1854,8 +1856,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      'keypad-height 350
      'keypad-shift 0
      'keypad-on #f
-     'modal-height 200
-     'camerafolder "camera"                          
+     'camerafolder "camera"    
+     ;; -------------
+     ;;modal
+     'modal-height 200                          
+     'modal-fntcol White  
+     'modal-boxcol Firebrick                                                 
      ;; -------------
      ;; colors
      'color-low     (color-fade Black 0.5)
@@ -1877,6 +1883,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      'btcolor (color-fade White 0.3)
      'fgcolor White
      'rounded #f
+     
      ;; -------------
    )))
    (set! uiform:g g)
