@@ -1593,6 +1593,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content-height (uiget 'contenth))
          (header-height (uiget 'headerh))
          (visible-height (- h header-height))
+         (maintime (uiget 'maintime #f))
          (fnt (uiget 'fnt))
          (hfnt (uiget 'hdfnt fnt))
          (bfnt (uiget 'btfnt fnt))
@@ -1644,7 +1645,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   (loop (cdr titles)))))))))
 
    ;; Date and time on all but the first page
-   (if (not (eq? (uiget 'page) 'main))
+   (if (or maintime (not (eq? (uiget 'page) 'main)))
      (let* ((dateh (glgui:fontheight fnt))
             (datey (+ y h (- (+ dateh 3)))))
        (glgui:draw-text-left (+ x 3) datey (* 0.95 w) dateh (seconds->string ##now "%Y-%m-%d") fnt White)
