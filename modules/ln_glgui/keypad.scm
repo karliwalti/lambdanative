@@ -47,12 +47,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   ( (,delchar ,glgui_keypad_delete.img) #\0 (,retchar ,glgui_keypad_return.img))
 )))
 
+(define keypad:numeric012 `( (
+  ( #\1 #\2 (#\3 "" 1))
+  ( (#\4 "" 1) (#\5 "" 1) (#\6 "" 1))
+  ( (#\7 "" 1) (#\8 "" 1) (#\9 "" 1))
+  ( (,delchar ,glgui_keypad_delete.img) #\0 (,retchar ,glgui_keypad_return.img))
+)))
+
 (define keypad:numfloat `( (
   ( #\1 #\2 #\3 )
   ( #\4 #\5 #\6 )
   ( #\7 #\8 #\9 )
   ( (,delchar ,glgui_keypad_delete.img 0.5) (#\. "." 0.5) #\0 (,retchar ,glgui_keypad_return.img))
 )))
+
 
 (define keypad:numcolon `( (
   ( #\7 #\8 #\9 )

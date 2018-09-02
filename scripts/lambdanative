@@ -2,7 +2,7 @@
 # LambdaNative initialization script to be placed in system path
 
 # Override this with actual lambdanative location
-LAMBDANATIVE=
+LAMBDANATIVE=/home/walterk/SoftwareRepo/lambdanative
 
 if [ "X$LAMBDANATIVE" = "X" ]; then
   echo "ERROR: this script has not been configured."
