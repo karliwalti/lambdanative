@@ -35,7 +35,7 @@ CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
-package @SYS_ORGTLD@.@SYS_ORGSLD@.@SYS_LOCASEAPPNAME@;
+package @SYS_PACKAGE_DOT@;
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 import android.app.Activity;
@@ -65,7 +65,6 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.MediaScannerConnection;
 // Imports needed for modules, e.g. gps
 @ANDROID_JAVA_IMPORTS@
 
@@ -93,7 +92,7 @@ public class @SYS_APPNAME@ extends Activity implements @ANDROID_JAVA_IMPLEMENTS@
     Thread.setDefaultUncaughtExceptionHandler(
       new Thread.UncaughtExceptionHandler() {
         public void uncaughtException(Thread t, Throwable e) {
-          final String TAG = "@SYS_ORGTLD@.@SYS_ORGSLD@.@SYS_LOCASEAPPNAME@";
+          final String TAG = "@SYS_PACKAGE_DOT@";
           Log.e(TAG, e.toString()); 
           try { Thread.sleep(1000); } catch (Exception ex) { }
           System.exit(1);
@@ -134,7 +133,9 @@ public class @SYS_APPNAME@ extends Activity implements @ANDROID_JAVA_IMPLEMENTS@
     super.onPause();
     // Additions needed by modules, e.g. gps
     @ANDROID_JAVA_ONPAUSE@
-    mGLView.onPause();
+    if (!isFinishing()) {
+      mGLView.onPause();
+    }
   }
   @Override
   protected void onResume() {
@@ -169,11 +170,6 @@ public class @SYS_APPNAME@ extends Activity implements @ANDROID_JAVA_IMPLEMENTS@
     if (browserIntent != null) {
      startActivity(browserIntent);
     }
-  }
-  // MediaScanner call
-  void runMediaScanner(){
-    MediaScannerConnection.scanFile(this, new String[]{"/sdcard/@SYS_APPNAME@/results",
-      "/sdcard/@SYS_APPNAME@/log","/sdcard/@SYS_APPNAME@/config"}, null, null);
   }
 
   native void nativeInstanceInit();
@@ -218,11 +214,17 @@ class  xGLSurfaceView extends GLSurfaceView {
     return true;
   }
   public boolean onKeyDown(int keyCode, KeyEvent event) {
+    return onKeyEvent(keyCode, event, 2); // type == EVENT_KEYPRESS == 2
+  }
+  public boolean onKeyUp(int keyCode, KeyEvent event) {
+    return onKeyEvent(keyCode, event, 3); // type == EVENT_KEYRELEASE == 3
+  }
+  private boolean onKeyEvent(int keyCode, KeyEvent event, int type) {
     t=x=y=0;
     // Get known keys
     int asciiKey = event.getUnicodeChar(event.getMetaState());
     if (asciiKey > 0) {
-      t=2;
+      t=type;
       x=asciiKey;
       queueEvent(new Runnable(){ public void run() {
         renderer.nativeEvent(t,x,y); }});
@@ -230,18 +232,18 @@ class  xGLSurfaceView extends GLSurfaceView {
     }
     // Get everything else
     switch (keyCode) {
-      case KeyEvent.KEYCODE_DEL: t=2; x=3; break;
-      case KeyEvent.KEYCODE_ENTER: t=2; x=1; break;
-      case KeyEvent.KEYCODE_DPAD_CENTER: t=2; x=1; break;
-      case KeyEvent.KEYCODE_DPAD_UP: t=2; x=6; break;
-      case KeyEvent.KEYCODE_DPAD_DOWN: t=2; x=7; break;
-      case KeyEvent.KEYCODE_DPAD_LEFT: t=2; x=5; break;
-      case KeyEvent.KEYCODE_DPAD_RIGHT: t=2; x=4; break;
-      case KeyEvent.KEYCODE_BACK: t=2; x=10; break;
-      case KeyEvent.KEYCODE_MENU: t=2; x=9; break;
+      case KeyEvent.KEYCODE_DEL:         t=type; x=3;  break;
+      case KeyEvent.KEYCODE_ENTER:       t=type; x=1;  break;
+      case KeyEvent.KEYCODE_DPAD_CENTER: t=type; x=1;  break;
+      case KeyEvent.KEYCODE_DPAD_UP:     t=type; x=6;  break;
+      case KeyEvent.KEYCODE_DPAD_DOWN:   t=type; x=7;  break;
+      case KeyEvent.KEYCODE_DPAD_LEFT:   t=type; x=5;  break;
+      case KeyEvent.KEYCODE_DPAD_RIGHT:  t=type; x=4;  break;
+      case KeyEvent.KEYCODE_BACK:        t=type; x=10; break;
+      case KeyEvent.KEYCODE_MENU:        t=type; x=9;  break;
       case KeyEvent.KEYCODE_VOLUME_DOWN: return false;
-      case KeyEvent.KEYCODE_VOLUME_UP: return false;
-      case KeyEvent.KEYCODE_SOFT_LEFT: return true;
+      case KeyEvent.KEYCODE_VOLUME_UP:   return false;
+      case KeyEvent.KEYCODE_SOFT_LEFT:   return true;
     }
     if (t>0) {
       queueEvent(new Runnable(){ public void run() {

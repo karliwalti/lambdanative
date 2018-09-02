@@ -90,14 +90,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;; Helper function to parse REDCAP JSON format [much easier than XML parsing]
 (define (redcap:jsonstr->list str)
-  (if (or (list? str) (fx< (string-length str) 3) (not (string-contains str "[{")) (not (string-contains str "}]")))
-    ;; Determine whether content just empty or whether it was improperly formatted (possibly incomplete)
-    (if (and (string? str) (fx>= (string-length str) 3) (not (string-contains str "[]"))) #f (list))
-    (let* ((index (string-contains str "[{"))
-           ;; Remove anything outside brackets first
-           (output (json-decode (substring str index (string-length str)))))
-      (if (json-error? output) #f (vector->list output))))
-)
+  (cond ((and (string? str) (string-contains str "[{") (string-contains str "}]"))
+          (let* ((index (string-contains str "[{"))
+                 ;; Remove anything outside brackets first
+                 (output (json-decode (substring str index (string-length str)))))
+            (if (json-error? output) #f (vector->list output))))
+        ((or (list? str) (and (string? str) (string-contains str "[]"))) '())
+        (else #f)))
 
 ;; Helper function to split return string into header and body
 (define (redcap:split-headerbody str)
@@ -125,32 +124,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (redcap:list->xmlstr record event data . xargs)
   (let* ((instance   (redcap:arg 'instance   xargs #f))
          (instrument (redcap:arg 'instrument xargs #f))
-         (repeat (if (and instance instrument) ;;add repeat information if provided
-                     (string-append "<redcap_repeat_instrument>" instrument "</redcap_repeat_instrument>"
-                                    "<redcap_repeat_instance>" instance "</redcap_repeat_instance>") "")))
+         (instance-string   (if instance
+                                (string-append "<redcap_repeat_instance>"   instance   "</redcap_repeat_instance>")
+                                ""))
+         (instrument-string (if (and instrument instance)
+                                (string-append "<redcap_repeat_instrument>" instrument "</redcap_repeat_instrument>")
+                                ""))
+         (repeat (string-append instrument-string instance-string)))
     (string-append
       "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>" "\r\n"
       "<records>" "\r\n"
       (let loop ((i 0) (str ""))
         (if (= i (length data)) str
             (loop (+ i 1)
-                  (let* ((lpair     (list-ref data i))
-                         (field     (car lpair))
-                         (fieldname (if (string? field) field (symbol->string field)))
-                         (values    (cdr lpair))
-                         (itemize   (lambda (v)
-                                      (let ((value (if (number? v) (number->string v) v)))
-                                        (string-append
-                                          "<item>"
-                                          "<record>" record "</record>"
-                                          repeat
-                                          "<redcap_event_name>" event "</redcap_event_name>"
-                                          "<field_name>" fieldname "</field_name>"
-                                          "<value>" value "</value>"
-                                          "</item>" "\r\n")))))
-                    (string-append str (if (list? values)
-                      (apply string-append (map itemize values))
-                      (itemize values)))))))
+              (string-append str
+                (let* ((lpair     (list-ref data i))
+                       (field     (car lpair))
+                       (fieldname (if (string? field) field (symbol->string field)))
+                       (values    (cdr lpair))
+                       (itemize   (lambda (v)
+                                    (let ((value (if (number? v) (number->string v) v)))
+                                      (string-append
+                                        "<item>"
+                                        "<record>" record "</record>"
+                                        repeat
+                                        "<redcap_event_name>" event "</redcap_event_name>"
+                                        "<field_name>" fieldname "</field_name>"
+                                        "<value>" value "</value>"
+                                        "</item>" "\r\n")))))
+                  (if (list? values)
+                    (string-mapconcat values "" itemize)
+                    (itemize values)))))))
       "</records>"))
 )
 
@@ -271,7 +275,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (instrument (redcap:arg 'instrument xargs #f))
         (type (redcap:arg 'type xargs "eav"))
         (over (redcap:arg 'overwrite xargs "overwrite"))
-        (message   (string-append  "token=" token "&content=record&format=xml&type=" type "&overwriteBehavior=" over "&data=" (redcap:list->xmlstr record event data 'instance instance 'instrument instrument) " &returnContent=count&returnFormat=json")) 
+        (message   (string-append  "token=" token "&content=record&format=xml&type=" type "&overwriteBehavior=" over "&data=" (redcap:list->xmlstr record event data 'instance instance 'instrument instrument) " &returnContent=count&returnFormat=json"))
         (request-str (redcap:make-request-str host message)))
     ;; Check if we have a valid connection before proceeding
    ;;(display request-str)
@@ -440,6 +444,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   )
 )
 
+
 (define (redcap-export-project host token . xargs)
          ;; See if format was specified in xargs, use json by default
   (let* ((format (redcap:arg 'format xargs "json"))
@@ -484,6 +489,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     )
   )
 )
+
+;; Get the next instance index given a repeatable event or instrument
+;; For events, supplying only the event name will suffice
+;; For instruments, if the project is longitudinal,
+;;  both the instrument name and the event should be supplied,
+;;  otherwise the next index over all events will be returned.
+;; If neither are given, the next index over all repeated events and instruments
+;;  will be returned; this is not likely what is desired.
+(define (redcap-get-next-instance-index host token record . xargs)
+  (let* ((form  (redcap:arg 'form  xargs #f))
+         (event (redcap:arg 'event xargs #f))
+         (records (if record (if (pair? record) record (list record)) #f))
+         (forms   (if form   (if (pair? form)   form   (list form))   #f))
+         (events  (if event  (if (pair? event)  event  (list event))  #f))
+         (response (redcap-export-records host token 'forms forms 'records records 'events events 'fields "redcap_repeat_instance" 'type "eav")))
+    (cond ((not response) #f)
+          ((= (length response) 0)
+            (begin (log-warning "No REDCap entry currently exists; instance will begin at 1.") 1))
+          ((not (alist-ref (car response) "redcap_repeat_instance"))
+            (begin (log-error "This REDCap entry is not repeatable.") #f))
+          (else (+ 1 (foldr
+            (lambda (record maxinstance)
+              (let* ((instance (alist-ref record "redcap_repeat_instance"))
+                     (i (if (string? instance) (string->number instance) instance)))
+                (if (and i (> i maxinstance)) i maxinstance)))
+            0 response))))))
+
 
 ;returns the index for instance in
 (define (redcap-get-next-instance host token record form)
@@ -627,12 +659,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (fd (string-append "--" bd "\r\n"
               "Content-Disposition: form-data; name=\"field\"" "\r\n" "\r\n"
               field "\r\n"))
-         (form (redcap:arg 'form xargs #f))
-         (fo (if form
-               (string-append "--" bd "\r\n"
-                 "Content-Disposition: form-data; name=\"form_instance_id\"" "\r\n" "\r\n"
-                 form "\r\n")
-               ""))
          (event (redcap:arg 'event xargs #f))
          (ev (if event
                (string-append "--" bd "\r\n"
@@ -657,7 +683,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
            "Host: " host "\r\n"
            "User-Agent: " redcap:user-agent  "\r\n"
            "Content-Length: " (number->string (+ (string-length ct) (string-length at) (string-length rd)
-             (string-length fd) (string-length tk) (string-length fo) (string-length ev) (string-length re) (string-length dt)
+             (string-length fd) (string-length tk) (string-length ev) (string-length re) (string-length dt)
              (if filesize filesize 0) (u8vector-length close-vector))) "\r\n"
            "Content-Type: " redcap:content-type-file "; boundary=" bd "\r\n" "\r\n"
              ct at rd fo ev re fd tk dt))))
@@ -686,14 +712,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (let loop ((n #f))
           (if (and n (> n 0))
               (redcap:data-append! (subu8vector redcap:buf 0 n)))
-          (if (and n (fx< n 1000)) ;;stop if one buffer 1024 filled
-            (begin
-              (httpsclient-close)
-              (let ((msg (redcap:split-headerbody (redcap:data->string))))
-                (redcap:error-check msg)
-              )) 
-            (loop (httpsclient-recv redcap:buf))
-          )))
+          ;; If the buffer isn't full, then there will be no more data to get
+          (if (and n (fx< n (u8vector-length redcap:buf)))
+              (begin
+                (httpsclient-close)
+                (let ((msg (redcap:split-headerbody (redcap:data->string))))
+                  (redcap:error-check msg)))
+              (loop (httpsclient-recv redcap:buf))))
+      )
       (begin
         (if (not filesize)
           (let ((str (string-append "File " filename " not found."))) (log-error str))
@@ -709,7 +735,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (redcap-export-file host token record field . xargs)
   (let* ((event (redcap:arg 'event xargs ""))
          (repeat (redcap:arg 'repeat xargs ""))
-         (form (redcap:arg 'form xargs #f))
          (request (string-append "content=file&action=export&token=" token
                                  "&record=" record
                                  (if event
@@ -718,10 +743,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                                  )
                                  (if repeat
                                    (string-append "&repeat_instance=" repeat)
-                                   ""
-                                 )
-                                 (if form
-                                   (string-append "&form_instance_id=" form)
                                    ""
                                  )
                                  "&field=" field))
@@ -765,15 +786,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (define (redcap-delete-file host token record field . xargs)
   (let* ((event (redcap:arg 'event xargs ""))
-         (form (redcap:arg 'form xargs #f))
+         (repeat (redcap:arg 'repeat xargs ""))
          (request (string-append "content=file&action=delete&token=" token
                                  "&record=" record
                                  (if event
                                    (string-append "&event=" event)
                                    ""
                                  )
-                                 (if form
-                                   (string-append "&form_instance_id=" form)
+                                 (if repeat
+                                   (string-append "&repeat_instance=" repeat)
                                    ""
                                  )
                                  "&field=" field))

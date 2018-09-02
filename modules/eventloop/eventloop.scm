@@ -97,6 +97,14 @@ end-of-c-declare
 (define EVENT_KEYHOME ((c-lambda () int "___result = EVENT_KEYHOME;")))
 (define EVENT_KEYEND ((c-lambda () int "___result = EVENT_KEYEND;")))
 
+;; keyboard modifier key constants
+(define MODIFIER_CTRL_MAC ((c-lambda () int "___result = MODIFIER_CTRL_MAC;")))
+(define MODIFIER_CTRL     ((c-lambda () int "___result = MODIFIER_CTRL;")))
+(define MODIFIER_ALT      ((c-lambda () int "___result = MODIFIER_ALT;")))
+(define MODIFIER_SHIFT    ((c-lambda () int "___result = MODIFIER_SHIFT;")))
+(define MODIFIER_CAPS     ((c-lambda () int "___result = MODIFIER_CAPS;")))
+(define MODIFIER_FN       ((c-lambda () int "___result = MODIFIER_FN;")))
+
 ;; orientation
 (define GUI_LANDSCAPE ((c-lambda () int "___result = GUI_LANDSCAPE;")))
 (define GUI_SEASCAPE ((c-lambda () int "___result = GUI_SEASCAPE;")))
@@ -127,7 +135,10 @@ end-of-c-declare
 ;; Android specials
 (define app:android? (string=? (system-platform) "android"))
 (define android-finish (c-lambda () void "android_finish"))
-(define android-run-mediascanner (c-lambda () void "android_run_mediascanner"))
+(define android-mediascanner-done? #f)
+(define (android-run-mediascanner)
+  (set! android-mediascanner-done? #f)
+  ((c-lambda () void "android_run_mediascanner")))
 
 (define event:fifo '())
 (define (event-push t x y)
@@ -178,8 +189,7 @@ end-of-c-declare
       )
       ((fx= t EVENT_TERMINATE)
         (log-system "System shutdown")
-        (if (procedure? hook:terminate) (hook:terminate))
-        (if app:android? (android-finish)))
+        (terminate))
       ((fx= t EVENT_SUSPEND)
         (if (and (not app:mustinit) (not app:suspended)) (begin
           (set! app:suspended #t)
@@ -213,6 +223,9 @@ end-of-c-declare
 (c-define (c-runflag) () int "scm_runflag" ""
   (if (number? app:runflag) app:runflag 0))
 
+(c-define (c-mediascanner-callback) () void "scm_mediascanner_callback" ""
+  (set! android-mediascanner-done? #t))
+
 ;; change default size (don't go full screen!)
 (define (make-window w h . force-fullscreen)
   (set! app:forcefullscreen (if (= (length force-fullscreen) 1) (car force-fullscreen) #f))
@@ -244,8 +257,12 @@ end-of-c-declare
 (set! main ln-main)
 
 (define (terminate)
+  (if app:android? (begin
+    (android-run-mediascanner)
+    (android-finish)
+    (let loop ()
+      (if (not android-mediascanner-done?) (begin (thread-sleep! 0.1) (loop))))))
   (if (procedure? hook:terminate) (hook:terminate))
-  (if app:android? (android-finish))
 )
 
 ;; eof
