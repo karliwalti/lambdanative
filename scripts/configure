@@ -1,0 +1,5 @@
+# Automatically generated. Do not edit
+here=/home/walterk/SoftwareRepo/lambdanative/scripts
+cd /home/walterk/SoftwareRepo/lambdanative
+SYS_PATH=$here ./configure $@
+cd $here

@@ -5,9 +5,11 @@
 ANDROIDSDK=`find /usr/local/android-sdk-*  -maxdepth 0 -print 2> /dev/null | tail -n 1`
 ANDROIDNDK=`find /usr/local/android-ndk-*  -maxdepth 0 -print  2> /dev/null| tail -n 1`
 # minimum version to support (a matching target must be installed)
-ANDROIDAPI=15
+ANDROIDAPI=19
 #android target cpu, either arm (default), x86 or mips
 ANDROIDARCH=arm
+# Java source and target version (default 1.5 when unset, set 1.6 to allow using Java 9/10)
+JAVAVERSION=1.6
 # ------------------------------------
 ## Linux cross compiler (mac)
 LINUXSDK=`find /usr/local/i?86-linux-*  -maxdepth 0 -print 2> /dev/null | tail -n 1`
@@ -25,7 +27,7 @@ if [ ! -f $IOSROOT/usr/bin/ar ]; then
   IOSROOT=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain
 fi
 # minimum version to support
-IOSVERSION=5.1.1
+IOSVERSION=6.0
 # ------------------------------------
 ## Blackberry BB10 cross compiler (linux or mac)
 BB10SDK=/Applications/Momentics.app

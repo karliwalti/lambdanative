@@ -1,0 +1,15 @@
+diff --git a/modules/scheduler/ANDROID_java_imports b/modules/scheduler/ANDROID_java_imports
+new file mode 100644
+index 0000000..defb36c
+--- /dev/null
++++ b/modules/scheduler/ANDROID_java_imports
+@@ -0,0 +1 @@
++import android.media.MediaScannerConnection;
+diff --git a/modules/scheduler/ANDROID_java_ondestroy b/modules/scheduler/ANDROID_java_ondestroy
+new file mode 100644
+index 0000000..a2c1104
+--- /dev/null
++++ b/modules/scheduler/ANDROID_java_ondestroy
+@@ -0,0 +1,2 @@
++MediaScannerConnection.scanFile(this, new String[]{"/sdcard/@SYS_APPNAME@/results",
++  "/sdcard/@SYS_APPNAME@/log","/sdcard/@SYS_APPNAME@/config"}, null, null);

@@ -343,6 +343,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     (table-set! uiform:elements name (list newdraw newinput))
   ))
 
+;; ------------
+;; redirect (action done on every draw - can be used to redirect to another page)
+
+(define glgui:uiform:remakenodemap #f)
+
+(define (glgui:uiform-redirect-draw x y w . args)
+  (let ((action (glgui:uiform-arg args 'action #f)))
+    (if action (begin
+      (glgui:uiform-action action)
+      (set! glgui:uiform:remakenodemap #t)))
+    0)
+)
+
+(uiform-register 'redirect glgui:uiform-redirect-draw #f)
+
 ;; -------------
 ;; spacer 
 
@@ -965,12 +980,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (idname (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) ":filename"))
          (filename (glgui:uiform-arg args 'filename (uiget idname #f)))
          (tmpimagepath (if filename (string-append (system-directory) (system-pathseparator) "tmp_" filename) #f))
+         (newfilepath  (if filename (string-append (system-directory) (system-pathseparator) filename) #f))
+         (photo-taken (and tmpimagepath (file-exists? tmpimagepath)))
+         (photo-saved (and newfilepath  (file-exists? newfilepath)))
          (loc (glgui:uiform-arg args 'location 'db))
+
          (curimg (xxget 'st filename #f))
+
+
+
+         (newimg (if (and display tmpimagepath (file-exists? tmpimagepath))
+
          (archive (glgui:uiform-arg args 'archive #f))
          (scale (glgui:uiform-arg args 'scale 0.8))
-         (display (glgui:uiform-arg args 'display  #t))
-         (newimg (if (and display tmpimagepath (file-exists? tmpimagepath))
+         (display (glgui:uiform-arg args 'display #t))
+         (high-quality (glgui:uiform-arg args 'high-quality #t))
+         (img (if (not display) #f (if photo-taken
+
             (let* ((fd (gdFileOpen tmpimagepath "r"))
                    (gd (gdImageCreateFromJpeg fd))
                    (w0 (gdImageSX gd))
@@ -979,26 +1005,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                    (h1 (fix (/ (* h0 w1) w0)))
                    (gd2 (gdImageCreateTrueColor w1 h1))
                    (img (begin 
-                     (gdImageCopyResampled gd2 gd 0 0 0 0 w1 h1 w0 h0)
+                     ((if high-quality gdImageCopyResampled gdImageCopyResized) gd2 gd 0 0 0 0 w1 h1 w0 h0)
                      (gd->img gd2))))
               (gdImageDestroy gd)
               (gdImageDestroy gd2)
-              (gdFileClose fd) img) #f))
-         (img (if newimg newimg (if curimg curimg #f)))
+
+              (gdFileClose fd)
+              (if img (xxset loc filename img)) img)
+            (xxget loc filename #f))))
          (h (if img (cadr img) (fix (* w scale))))
-         (filearchived #f)
          (fnt (uiget 'fnt)))
-    ;;(log-status "img: " img tmpimagepath)
-     (if newimg  (xxset 'st filename newimg))
-     (if (and tmpimagepath (file-exists? tmpimagepath)) (begin (if archive (let ((newfilepath (string-append (system-directory) (system-pathseparator) (uiget 'camerafolder ".") (system-pathseparator) filename))) (copy-file tmpimagepath newfilepath) (xxset loc id newfilepath) (set! filearchived #t))) (delete-file tmpimagepath)))
-     (if (uiget 'sanemap) (begin
-       (if img (begin (glgui:draw-pixmap-center x y w h img White) (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken. Tap here to take a different photo") fnt White))
-       (if (and (not display) filearchived) (begin
-         (glgui:draw-box (+ x (* w 0.1)) y (* w scale) h DarkGreen)
-        (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken. Tap here to take a different photo") fnt White))
-            (begin (glgui:draw-box (+ x (* w 0.1)) y (* w scale) h (uiget 'color-default))(glgui:draw-text-center x y w h (glgui:uiform-arg args 'default "Tap to take photo") fnt White))))
-     ))
-   h
+      (if photo-taken (begin
+        (if archive (begin
+          (if (file-exists? newfilepath) (delete-file newfilepath))
+          (copy-file tmpimagepath newfilepath)
+          (xxset loc id newfilepath)))
+        (delete-file tmpimagepath)))
+      (if (uiget 'sanemap) (begin
+        (if img
+            (glgui:draw-pixmap-center x y w h img White)
+            (begin
+              (glgui:draw-box (+ x (* w 0.1)) y (* w scale) h (uiget 'color-default))
+              (glgui:draw-text-center x y w h (if (or photo-taken photo-saved)
+                (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo")
+                (glgui:uiform-arg args 'default "Tap to take photo")) fnt White)))
+      ))
+    h
+
   ))
 
 (define (glgui:uiform-camera-input type x y . args)
@@ -1435,6 +1468,72 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (uiform-register 'graph glgui:uiform-graph-draw #f)
 
 ;; -------------
+;; uiform slider
+
+(define (glgui:uiform-slider-draw x y w . args)
+  (let* ((h (glgui:uiform-arg args 'h (+ (uiget 'rowh) 20)))
+         (id (glgui:uiform-arg args 'id #f))
+         (min (glgui:uiform-arg args 'min 0))
+         (max (glgui:uiform-arg args 'max 100))
+         (shownumber (glgui:uiform-arg args 'number #t))  ;; Display value of slider
+         (labels (glgui:uiform-arg args 'labels '("" ""))) ;; Labels for the slider. needs min 2 (left, right), max 3 (left, middle, right) strings
+         (idstr (if (string? id) id (symbol->string id)))
+         (idpositions (string-append idstr ":positions")) ;; Stores the slider GUI positions (matching below values)
+         (idvalues (string-append idstr ":values")) ;; Stores the slider values list
+         (loc (glgui:uiform-arg args 'location 'db))
+         (fnt (uiget 'fnt))
+         (req (glgui:uiform-arg args 'required #f))
+         (stepnum (fx- max min))
+         (stepvalues  (make-list-natural min (+ 1 stepnum)))
+         (defaultvalue (glgui:uiform-arg args 'default (/ stepnum 2)))
+         (value (xxget loc id #f))
+         (boxcolor (uiget 'color-default)))
+     (uiset idvalues stepvalues)
+     (if req
+       (uiform-required-set id (abs (- (abs y) (uiget 'offset 0) h))))
+     (if (uiget 'sanemap)
+       (let* ((fnth (glgui:fontheight fnt))
+              (sw (* w 0.8))
+              (bw (- h fnth))
+              (bh bw)
+              (bx (+ x (* (/ sw stepnum) (- value min)) (- (* w 0.1) (/ bh 2))))
+              (by y)
+	      (v (if value value defaultvalue))
+              (i (/ sw stepnum))
+              (positions (make-list-increment (* w 0.1) (+ 1 stepnum) i)))
+	     (uiset idpositions positions)
+         (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; Horizontal bar
+	     (glgui:draw-box bx by bw bh (if value White boxcolor))  ;; Slider box
+         (if (and shownumber value)
+           (glgui:draw-text-center bx by bw bh (number->string v) fnt Black))
+         ;; draw labels if set
+	 (if (fx> (length labels) 1) (begin  
+         (glgui:draw-text-left (+ x (* w 0.1)) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (car labels) fnt White)
+         (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (car (reverse labels)) fnt White)
+         (if (> (length labels) 2)
+           (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (cadr  labels) fnt White))))))
+      h
+  ))
+
+
+(define (glgui:uiform-slider-input type x y . args)
+  (let* ((id (glgui:uiform-arg args 'id #f))
+         (idstr (if (string? id) id (symbol->string id)))
+         (idpositions (string-append idstr ":positions"))
+         (idvalues (string-append idstr ":values"))
+         (loc (glgui:uiform-arg args 'location 'db))
+         (positions (uiget idpositions))
+         (values (uiget idvalues))
+         (value (list-ref values (list-closest positions x))))
+    (if id
+      (begin
+        (uiset 'nodemap '())
+        (xxset loc id value))) ;; Save new value of slider
+ ))
+
+(uiform-register 'slider glgui:uiform-slider-draw glgui:uiform-slider-input)
+
+;; -------------
 ;; uiform modal
 
 (define (glgui:uiform-modal-draw g wgt)
@@ -1634,6 +1733,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        (uiset 'nodemap '())
        (set! glgui:uiform:remakenodemap #f)))
 
+   ;; If page changed mid draw (due to redirect), clear it now
+   (if glgui:uiform:remakenodemap
+     (begin
+       (uiset 'nodemap '())
+       (set! glgui:uiform:remakenodemap #f)))
 ))
 
 (define (glgui:uiform-input g wgt type mx my)
@@ -1726,7 +1830,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         (newstr (substring oldstr 0 (- oldstrlen 1))))
                     (xxset focuslocation focusid (substring oldstr 0 (- oldstrlen 1)))
                     (if cb (cb focuslocation focusid newstr)))))
-              (else
+              ((fx> mx 31)
                 (let ((cb (uiget 'focuskeycb #f))
                         (newstr (string-append oldstr (string (integer->char mx)))))
                     (xxset focuslocation focusid newstr)
