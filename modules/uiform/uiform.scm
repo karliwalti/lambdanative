@@ -738,10 +738,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (ampm (glgui:uiform-arg args 'ampm #f))
          (loc (glgui:uiform-arg args 'location 'db))
          (req (glgui:uiform-arg args 'required #f))
+         (forcefocus (glgui:uiform-arg args 'focus #f))
          (password  (glgui:uiform-arg args 'password #f))
-         (default "HH:MM")
+         (direct (glgui:uiform-arg args 'direction 0))
+         (default (if direct "00:00" "HH:MM"))
          (focusid  (uiget 'focusid))
-         (hasfocus (eq? focusid id))
+         (hasfocus (eq? focusid id) )
          (warning  (xxget 'st 'timewarning #f))
          (fgcolor (if warning Red White))
          (idvalue (if id (xxget loc id #f)))
@@ -764,7 +766,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (buttoncolor White)
          (indent (glgui:uiform-arg args 'indent
             (if (string=? label "") 0.1 0.3)))
-         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) 0))
+         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) (if direct (glgui:stringwidth default fnt) 0)))
          (txth  (if focusid (glgui:fontheight fnt) 0))
          (ampmw (* w 0.2)))
      (if (uiget 'sanemap) (begin
@@ -780,7 +782,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                  (cy (+ y (/ (- h txth) 2.)))
                  (cw 3) (ch txth)
                  (cc (if (odd? (fix (* 2 ##now))) White selcolor)))
-             (glgui:draw-box cx cy cw ch cc)))
+             (glgui:draw-box cx cy cw ch cc)))                 
        ))
      h
   ))
@@ -788,6 +790,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (glgui:uiform-timeentry-input type mx my . args)
   (let* ((id  (glgui:uiform-arg args 'id #f))
          (loc (glgui:uiform-arg args 'location 'db))
+         (direct (glgui:uiform-arg args 'direction 0))
+         (forcefocus (glgui:uiform-arg args 'focus #f))
          (focusid (uiget 'focusid))
          (keypad-on (uiget 'keypad-on))
          (keypad-height (uiget 'keypad-height))
@@ -811,7 +815,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                                   (let* ((len (string-length str))
                                         ;;(firstval (if len  (string->number (string-ref str 0)) 0))
                                         (cindex (string-index str #\:)))
-                                    (cond
+                                    (if direct
+                                        (cond ;;right to left (calculator mode)
+                                          ((fx= len 0) 
+                                               (xxset floc fid "00:00"))
+                                           ((fx= len 1) 
+                                               (xxset floc fid (string-append "00:0" (substring str 0 1))))
+                                          ((fx> len 5) 
+                                              (xxset floc fid (string-append (substring str 1 2) (substring str 3 4) ":" (substring str 4 5) (substring str 5 6)))))                                       
+                                    (cond  ;;go left to right
                                      ;;((fx> len 0) (xxset floc 'keypad  keypad:numeric))
                                       ((and (fx= len 2) (not cindex))
                                          (xxset floc fid (string-append (substring str 0 1) ":" (substring str 1 2))))
@@ -822,10 +834,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                                           ;; Move colon right
                                           (xxset floc fid (string-append (substring str 0 1) (substring str 2 3) ":" (substring str 3 5))))
                                       ((fx> len 5)
-                                         (xxset floc fid (substring str 0 5)))))
+                                         (xxset floc fid (substring str 0 5)))) 
+                                        ))
                                  (let* ((ss (xxget floc fid))
-                                        (len (string-length ss))
-                                        (cindex (string-index ss #\:))
+                                        (len (if ss (string-length ss) 0))
+                                        (cindex (if ss (string-index ss #\:) 0))
                                          (min (if (and cindex (> len (+ cindex 2))) (string->number (substring ss (+ cindex 1) (+ cindex 3))) 0))
                                          (hou  (if (and cindex (fx= cindex 2)) (string->number (substring ss 0 2)) 0)))
                                     (if
