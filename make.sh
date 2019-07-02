@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # LambdaNative - a cross-platform Scheme framework
 # Copyright (c) 2009-2013, University of British Columbia
 # All rights reserved.

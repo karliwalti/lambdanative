@@ -1129,7 +1129,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
       (glgui:draw-box bx by bw bh boxcolor)
       (if curvalue (glgui:draw-pixmap-center bx by bw bh check.img White))
-      (glgui:draw-text-left (+ bx bw 10) (+  y (/ (- h fnth) 2.)) (- w bx bw 10 10) fnth text fnt color) 
+      (glgui:draw-text-left (+ bx bw 11) (+  y (/ (- h fnth) 2.)) (- w bx bw 10 10) fnth text fnt color) 
     ))
   h
 ))
