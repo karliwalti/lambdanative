@@ -119,7 +119,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (stset 'required (append curentry  (list (list ids (if (< val 0) 0 val)))))))
 )
 
-;; removes id and vertical position of required fields from store
+;; clears all flags for required fields in store
 (define (uiform-required-clear id )
   (let* ((curentry (stget 'required  '()))
          (ids (if (symbol? id) id (string->symbol id)))
@@ -343,6 +343,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     (table-set! uiform:elements name (list newdraw newinput))
   ))
 
+;; ------------
+;; redirect (action done on every draw - can be used to redirect to another page)
+
+(define glgui:uiform:remakenodemap #f)
+
+(define (glgui:uiform-redirect-draw x y w . args)
+  (let ((action (glgui:uiform-arg args 'action #f)))
+    (if action (begin
+      (glgui:uiform-action action)
+      (set! glgui:uiform:remakenodemap #t)))
+    0)
+)
+
+(uiform-register 'redirect glgui:uiform-redirect-draw #f)
+
 ;; -------------
 ;; spacer 
 
@@ -362,21 +377,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  h))
 
 (uiform-register 'separator glgui:uiform-separator-draw #f)
-
-;; ------------
-;; redirect (action done on every draw - can be used to redirect to another page)
-
-(define glgui:uiform:remakenodemap #f)
-
-(define (glgui:uiform-redirect-draw x y w . args)
-  (let ((action (glgui:uiform-arg args 'action #f)))
-    (if action (begin
-      (glgui:uiform-action action)
-      (set! glgui:uiform:remakenodemap #t)))
-    0)
-)
-
-(uiform-register 'redirect glgui:uiform-redirect-draw #f)
 
 
 ;; -------------
@@ -415,6 +415,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                        ((big) 'bigfnt)
                        ((header) 'hdfnt))))
          (h (glgui:fontheight fnt))
+         (indent (glgui:uiform-arg args 'indent 0.1))
          (label (glgui:uiform-arg args 'text ""))
          (wrappedlabel (if (glgui:uiform-arg args 'wrap #t)
            (string-split-width label (fix (* 0.8 w)) fnt)
@@ -427,9 +428,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        (if (> (length ss) 0) (begin
          (if (uiget 'sanemap)
          (case align
-           ((center) (glgui:draw-text-center (+ x (* 0.1 w)) ypos (- w (* 0.2 w)) h (car ss) fnt color) )
-           ((left) (glgui:draw-text-left (+ x (* 0.1 w)) ypos (- w (* 0.1 w)) h (car ss) fnt color) )
-           ((right) (glgui:draw-text-right x ypos (- w (* 0.1 w)) h (car ss) fnt color))
+           ((center) (glgui:draw-text-center (+ x (* indent w)) ypos (- w (* (* indent 2) w)) h (car ss) fnt color) )
+           ((left) (glgui:draw-text-left (+ x (* indent w)) ypos (- w (* (+ indent 0.1) w)) h (car ss) fnt color) )
+           ((right) (glgui:draw-text-right x ypos (- w (* indent w)) h (car ss) fnt color))
          ))
          (set! toth (+ toth h))
          (set! ypos (+ ypos h))
@@ -451,37 +452,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (password  (glgui:uiform-arg args 'password #f))
          (default (glgui:uiform-arg args 'default #f))
          (units (glgui:uiform-arg args 'units #f))
-         (d (glgui:uiform-arg args 'date #f))
-         (time (glgui:uiform-arg args 'time #f))
          (req (glgui:uiform-arg args 'required #f))
          (focusid  (uiget 'focusid))
          (hasfocus (eq? focusid id))
          (idvalue (if id (xxget loc id #f) #f))
          (defcolor (uiget 'color-default))
          (selcolor (uiget 'color-select))
-         (fgcolor White) 
-         (strvallen (if (string? idvalue) (string-length idvalue) 0))
+         (fgcolor White)
          (idvaluestr (cond
            ((and (string? idvalue) (or hasfocus (fx> (string-length idvalue) 0)))
-            (if (and time (fx= 2 strvallen)) (string-append idvalue ":")
-              (if password (make-string (string-length idvalue) #\*) idvalue)))
+              (if password (make-string (string-length idvalue) #\*) idvalue))
            ((number? idvalue)
               (number->string idvalue))
            (else
              (set! fgcolor (uiget 'color-default))
              default)))
-        
          (indent (glgui:uiform-arg args 'indent
             (if (string=? label "") 0.1 0.3)))
          (indentright (glgui:uiform-arg args 'indentright 0.1))
          (align (glgui:uiform-arg args 'align 'left))
          (drawproc (case align
-                      ((left) glgui:draw-text-left) 
+                      ((left) glgui:draw-text-left)
                       ((center) glgui:draw-text-center)
                       ((right) glgui:draw-text-right)))
          (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) 0))
          (txth  (if focusid (glgui:fontheight fnt) 0)))
-   
      (if (uiget 'sanemap) (begin
        (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
        (glgui:draw-text-right x y (- (* w indent) 10) h label fnt White)
@@ -497,7 +492,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                  (cw 3)
                  (ch txth)
                  (cc (if (odd? (fix (* 2 ##now))) White selcolor)))
-             (glgui:draw-box cx cy cw ch cc)))))
+             (glgui:draw-box cx cy cw ch cc)))
+       ))
      h
   ))
 
@@ -738,51 +734,47 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (ampm (glgui:uiform-arg args 'ampm #f))
          (loc (glgui:uiform-arg args 'location 'db))
          (req (glgui:uiform-arg args 'required #f))
-         (forcefocus (glgui:uiform-arg args 'focus #f))
          (password  (glgui:uiform-arg args 'password #f))
-         (direct (glgui:uiform-arg args 'direction 0))
-         (default (if direct "00:00" "HH:MM"))
+         (default "HH:MM")
          (focusid  (uiget 'focusid))
-         (hasfocus (eq? focusid id) )
-         (warning  (xxget 'st 'timewarning #f))
-         (fgcolor (if warning Red White))
+         (hasfocus (eq? focusid id))
          (idvalue (if id (xxget loc id #f)))
+         (fgcolor White)
          (idvaluestr (if (and (string? idvalue) (or hasfocus (fx> (string-length idvalue) 0)))
                        idvalue
                        (begin
                          (set! fgcolor (uiget 'color-default))
                          default)))
-         (ampmvalue (if id (xxget loc 'ampm #f)))
+         (ampmvalue (if id (xxget loc ampm #f)))
          (defaultampm (glgui:uiform-arg args 'defaultampm "AM"))
          (ampmvaluestr (if (string? ampmvalue)
                              ampmvalue
                              (begin
                                ;; If no ampmvalue, set it - always has a value displayed
-                               (if ampm (xxset loc 'ampm defaultampm))
+                               (xxset loc ampm defaultampm)
                                defaultampm)))
          (defcolor (uiget 'color-default))
          (selcolor (uiget 'color-select))
-         
          (buttoncolor White)
          (indent (glgui:uiform-arg args 'indent
             (if (string=? label "") 0.1 0.3)))
-         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) (if direct (glgui:stringwidth default fnt) 0)))
+         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) 0))
          (txth  (if focusid (glgui:fontheight fnt) 0))
          (ampmw (* w 0.2)))
+    
      (if (uiget 'sanemap) (begin
        (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
        (glgui:draw-text-right x y (- (* w indent) 10) h label fnt White)
        (glgui:draw-box (+ x (* w indent)) y (- (* w (- 1. indent)) ampmw 4) h (if hasfocus selcolor defcolor))
-       (if ampm (begin (glgui:draw-box (+ x (- w ampmw 2)) y ampmw h defcolor)
-       (glgui:draw-text-center (+ x (- w ampmw 2)) y ampmw h ampmvaluestr fnt White)))
+       (glgui:draw-box (+ x (- w ampmw 2)) y ampmw h defcolor)
+       (glgui:draw-text-center (+ x (- w ampmw 2)) y ampmw h ampmvaluestr fnt White)
        (if idvaluestr (glgui:draw-text-left (+ x (* w indent) 10) y (- (* w (- 1. indent)) ampmw 10) h idvaluestr fnt fgcolor))
-       (if warning (glgui:draw-text-left (+ x (* w indent)) (+ y h) (- (* w (- 1. indent)) ampmw 4) h (glgui:uiform-arg args 'timewarning "Wrong time format!") fnt Red))
        (if hasfocus
           (let* ((cx (+ x (* w indent) 10 txtw 2))
                  (cy (+ y (/ (- h txth) 2.)))
                  (cw 3) (ch txth)
                  (cc (if (odd? (fix (* 2 ##now))) White selcolor)))
-             (glgui:draw-box cx cy cw ch cc)))                 
+             (glgui:draw-box cx cy cw ch cc)))
        ))
      h
   ))
@@ -790,8 +782,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define (glgui:uiform-timeentry-input type mx my . args)
   (let* ((id  (glgui:uiform-arg args 'id #f))
          (loc (glgui:uiform-arg args 'location 'db))
-         (direct (glgui:uiform-arg args 'direction 0))
-         (forcefocus (glgui:uiform-arg args 'focus #f))
          (focusid (uiget 'focusid))
          (keypad-on (uiget 'keypad-on))
          (keypad-height (uiget 'keypad-height))
@@ -802,49 +792,29 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       (let ((ampmw (* w 0.2)))
         (if (> mx (+ x (- w ampmw 4)))
           (let* ((ampm (glgui:uiform-arg args 'ampm #f))
-                 (ampmvalue (if id (xxget loc 'ampm #f)))
+                 (ampmvalue (if id (xxget loc ampm #f)))
                  (defaultampm (glgui:uiform-arg args 'defaultampm "AM"))
                  (ampmvaluestr (if (string? ampmvalue) ampmvalue defaultampm)))
-            (if ampm (xxset loc 'ampm (if (string=? ampmvaluestr "PM") "AM" "PM"))))
-          (let* ((idvalue (if id (xxget loc id #f)))
-                 (vallen  (if (string? idvalue) (string-length idvalue) 0)))
+            (xxset loc ampm (if (string=? ampmvaluestr "PM") "AM" "PM")))
+          (begin
             (uiset 'focusid id)
             (uiset 'focuslocation loc)
-            (uiset 'keypad  keypad:numeric)
             (uiset 'focuskeycb (lambda (floc fid str)
-                                  (let* ((len (string-length str))
-                                        ;;(firstval (if len  (string->number (string-ref str 0)) 0))
+                                  (let ((len (string-length str))
                                         (cindex (string-index str #\:)))
-                                    (if direct
-                                        (cond ;;right to left (calculator mode)
-                                          ((fx= len 0) 
-                                               (xxset floc fid "00:00"))
-                                           ((fx= len 1) 
-                                               (xxset floc fid (string-append "00:0" (substring str 0 1))))
-                                          ((fx> len 5) 
-                                              (xxset floc fid (string-append (substring str 1 2) (substring str 3 4) ":" (substring str 4 5) (substring str 5 6)))))                                       
-                                    (cond  ;;go left to right
-                                     ;;((fx> len 0) (xxset floc 'keypad  keypad:numeric))
+                                    (cond
                                       ((and (fx= len 2) (not cindex))
                                          (xxset floc fid (string-append (substring str 0 1) ":" (substring str 1 2))))
                                       ((and (fx= len 4) (fx= cindex 2))
                                           ;; Move colon left
                                           (xxset floc fid (string-append (substring str 0 1) ":" (substring str 1 2) (substring str 3 4))))
-                                      ((and (fx= len 5) (fx= cindex 1) )
+                                      ((and (fx= len 5) (fx= cindex 1))
                                           ;; Move colon right
                                           (xxset floc fid (string-append (substring str 0 1) (substring str 2 3) ":" (substring str 3 5))))
                                       ((fx> len 5)
-                                         (xxset floc fid (substring str 0 5)))) 
-                                        ))
-                                 (let* ((ss (xxget floc fid))
-                                        (len (if ss (string-length ss) 0))
-                                        (cindex (if ss (string-index ss #\:) 0))
-                                         (min (if (and cindex (> len (+ cindex 2))) (string->number (substring ss (+ cindex 1) (+ cindex 3))) 0))
-                                         (hou  (if (and cindex (fx= cindex 2)) (string->number (substring ss 0 2)) 0)))
-                                    (if
-                                     (or  (> min 59)(> hou 23)(< len 4)) (xxset 'st 'timewarning #t ) (xxset 'st 'timewarning #f ))
-                                     )
-                                 ))
+                                         (xxset floc fid (substring str 0 5)))))))
+            
+            (uiset 'keypad keypad:numeric)
             (uiset 'toggle #f)
             (uiset 'shift #f)
             (glgui:uiform-keypad-up)
@@ -978,12 +948,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (idname (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) ":filename"))
          (filename (glgui:uiform-arg args 'filename (uiget idname #f)))
          (tmpimagepath (if filename (string-append (system-directory) (system-pathseparator) "tmp_" filename) #f))
+         (newfilepath  (if filename (string-append (system-directory) (system-pathseparator) filename) #f))
+         (photo-taken (and tmpimagepath (file-exists? tmpimagepath)))
+         (photo-saved (and newfilepath  (file-exists? newfilepath)))
          (loc (glgui:uiform-arg args 'location 'db))
-         (curimg (xxget 'st filename #f))
          (archive (glgui:uiform-arg args 'archive #f))
          (scale (glgui:uiform-arg args 'scale 0.8))
-         (display (glgui:uiform-arg args 'display  #t))
-         (newimg (if (and display tmpimagepath (file-exists? tmpimagepath))
+         (display (glgui:uiform-arg args 'display #t))
+         (high-quality (glgui:uiform-arg args 'high-quality #t))
+         (img (if (not display) #f (if photo-taken
             (let* ((fd (gdFileOpen tmpimagepath "r"))
                    (gd (gdImageCreateFromJpeg fd))
                    (w0 (gdImageSX gd))
@@ -992,26 +965,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                    (h1 (fix (/ (* h0 w1) w0)))
                    (gd2 (gdImageCreateTrueColor w1 h1))
                    (img (begin 
-                     (gdImageCopyResampled gd2 gd 0 0 0 0 w1 h1 w0 h0)
+                     ((if high-quality gdImageCopyResampled gdImageCopyResized) gd2 gd 0 0 0 0 w1 h1 w0 h0)
                      (gd->img gd2))))
               (gdImageDestroy gd)
               (gdImageDestroy gd2)
-              (gdFileClose fd) img) #f))
-         (img (if newimg newimg (if curimg curimg #f)))
+              (gdFileClose fd)
+              (if img (xxset loc filename img)) img)
+            (xxget loc filename #f))))
          (h (if img (cadr img) (fix (* w scale))))
-         (filearchived #f)
          (fnt (uiget 'fnt)))
-    ;;(log-status "img: " filename )
-     (if newimg  (xxset 'st filename newimg))
-     (if (and tmpimagepath (file-exists? tmpimagepath)) (begin (if archive (let ((newfilepath (string-append (system-directory) (system-pathseparator) (uiget 'camerafolder ".") (system-pathseparator) filename))) (copy-file tmpimagepath newfilepath) (xxset loc id newfilepath) (set! filearchived #t))) (delete-file tmpimagepath)))
-     (if (uiget 'sanemap) (begin
-       (if img (begin (glgui:draw-pixmap-center x y w h img White) (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken. Tap here to take a different photo") fnt White))
-       (if (and (not display) filearchived) (begin
-         (glgui:draw-box (+ x (* w 0.1)) y (* w scale) h DarkGreen)
-        (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken. Tap here to take a different photo") fnt White))
-            (begin (glgui:draw-box (+ x (* w 0.1)) y (* w scale) h (uiget 'color-default))(glgui:draw-text-center x y w h (glgui:uiform-arg args 'default "Tap to take photo") fnt White))))
-     ))
-   h
+      (if photo-taken (begin
+        (if archive (begin
+          (if (file-exists? newfilepath) (delete-file newfilepath))
+          (copy-file tmpimagepath newfilepath)
+          (xxset loc id newfilepath)))
+        (delete-file tmpimagepath)))
+      (if (uiget 'sanemap) (begin
+        (if img
+            (glgui:draw-pixmap-center x y w h img White)
+            (begin
+              (glgui:draw-box (- (+ x (* w 0.5)) (* w scale 0.5)) y (* w scale) h (uiget 'color-default))
+              (glgui:draw-text-center x y w h (if (or photo-taken photo-saved)
+                (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo")
+                (glgui:uiform-arg args 'default "Tap to take photo")) fnt White)))
+      ))
+    h
   ))
 
 (define (glgui:uiform-camera-input type x y . args)
@@ -1040,7 +1018,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (id (glgui:uiform-arg args 'id #f))
          (loc (glgui:uiform-arg args 'location 'db))
          (curvalue (xxget loc id #f))
-         (boxcolor (uiget 'color-default))
+         (boxcolor (glgui:uiform-arg args 'boxcolor (uiget 'color-default)))
          (text (glgui:uiform-arg args 'text #f))
          (color (glgui:uiform-arg args 'color White))
          (left (glgui:uiform-arg args 'left #f))
@@ -1116,7 +1094,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (id (glgui:uiform-arg args 'id #f))
          (loc (glgui:uiform-arg args 'location 'db))
          (curvalue (xxget loc id #f))
-         (boxcolor (uiget 'color-default))
+         (boxcolor (glgui:uiform-arg args 'boxcolor (uiget 'color-default)))
          (color (glgui:uiform-arg args 'color White))
          (text (glgui:uiform-arg args 'text #f))
          (indent (glgui:uiform-arg args 'indent 0.2))
@@ -1129,7 +1107,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
       (glgui:draw-box bx by bw bh boxcolor)
       (if curvalue (glgui:draw-pixmap-center bx by bw bh check.img White))
-      (glgui:draw-text-left (+ bx bw 11) (+  y (/ (- h fnth) 2.)) (- w bx bw 10 10) fnth text fnt color) 
+      (glgui:draw-text-left (+ bx bw 10) (+  y (/ (- h fnth) 2.)) (- w bx bw 10 10) fnth text fnt color) 
     ))
   h
 ))
@@ -1146,8 +1124,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     ))))
 
 (uiform-register 'checkbox glgui:uiform-check-draw glgui:uiform-check-input)
-
-
 
 ;; --------------
 ;; drop down
@@ -1316,7 +1292,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;; checklist
 
 (define (glgui:uiform-checklist-draw x y w . args)
-  (let* ((h (+ (uiget 'rowh) 20) )
+  (let* ((h (uiget 'rowh))
          (id (glgui:uiform-arg args 'id #f))
          (radio (glgui:uiform-arg args 'radio #f))
          (raw (if (glgui:uiform-arg args 'values #f) (glgui:uiform-arg args 'raw #f) #f))  ;;make sure that when raw is defined value is too!
@@ -1335,7 +1311,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (mergedselections (let loop ((es mergedentries)(res '()))
            (if (= (length es) 0) res (loop (cdr es) (append res (if (member (car es) actualentries) '(#t) '(#f)))))))
          (noentries (length mergedentries))
-         (boxcolor (uiget 'color-default)))
+         (boxcolor (glgui:uiform-arg args 'boxcolor (uiget 'color-default))))
      (uiset idmerged mergedentries)
      (uiset idvalues defaultvalues)
      (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
@@ -1351,27 +1327,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 		 (drawproc (case align
                        ((center) glgui:draw-text-center)
                        ((left) glgui:draw-text-left)
-                       ((right) glgui:draw-text-right)))
-                  (text (car es))
-                  (wrappedtext (string-split-width text (fix (- (* 0.8 w) bw)) fnt))
-                  (numlines (length wrappedtext))
-                  (ypos (- (+ y dy) (* h 0.1 numlines))))
+                       ((right) glgui:draw-text-right))))
              (glgui:draw-box (+ x (* w 0.1)) (+ y dy 1) (* w 0.8) (- h 2) boxcolor)
              (if radio
                  (glgui:draw-pixmap-center bx by bw bh circle.img boxcolor)
                  (glgui:draw-box bx by bw bh boxcolor))
              (if (car ss) (if radio (glgui:draw-pixmap-stretch (+ bx shift) (+ shift by) (* bw  scale) (* bh scale) circle.img White) 
                                     (glgui:draw-pixmap-center bx by bw bh check.img White)))
-             (if (> numlines 1)
-                 (begin
-                  (let loop ((tx (reverse wrappedtext)))
-       (if (> (length tx) 0) (begin
-         (drawproc (+ bx bw) ypos (- (* w 0.8) bw) h (car tx) fnt White)
-         ;;(set! toth (+ toth h))
-         (set! ypos (+ ypos (/ h (+ numlines 1))))
-         (loop (cdr tx)))))
-                  )
-             (drawproc (+ bx bw) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White))))
+             (drawproc (+ bx bw) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White)))
          (loop (cdr es)(cdr ss)(+ dy h)))))
   ))
       
@@ -1402,84 +1365,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (uiform-register 'checklist glgui:uiform-checklist-draw glgui:uiform-checklist-input)
   
-
-;; new list filled with n elements containing s, s+i, s+2*i, ... s+(n-1)*i
-(define (make-list-increment s n i)
-  (if (zero? n)
-    '()
-    (cons s (make-list-increment (+ s i) (- n 1) i))
-  ))
-;; absolute substraction of each list element
-(define (asub lst k) (map (lambda (x) (abs (- x k))) lst))
-
-;; get idx of element in list that is closest to val
-(define (list-closest lst v)
-  (let* ((mlst (asub lst v))
-         (min (list-min mlst)))
-    (list-pos mlst min))
- ) 
-;; -------------
-;; slider
-
-(define (glgui:uiform-slider-draw x y w . args)
-  (let* ((h (+ (uiget 'rowh) 20) )
-         (id (glgui:uiform-arg args 'id #f))
-         (min (glgui:uiform-arg args 'min 0))
-         (max (glgui:uiform-arg args 'max 100))
-         (shownumber (glgui:uiform-arg args 'number #t))  ;;display value of slider
-         (labels (glgui:uiform-arg args 'labels '("" ""))) ;; labels for the slider. needs min 2, max3 strings
-         ;;(stepsize (glgui:uiform-arg args 'stepsize 1))
-         (stepnum (fx- max min))
-      	 (identries (string-append (if (string? id) id (symbol->string id)) ":entries")) ;;stores the gui position
-         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values")) ;;stores the slider value
-  	     (loc (glgui:uiform-arg args 'location 'db))
-         (align (glgui:uiform-arg args 'align 'center))
-         (fnt (uiget 'fnt))
-         (req (glgui:uiform-arg args 'required #f))
-         (defaultvalue (glgui:uiform-arg args 'default (/ stepnum 2)))
-         (stepvalues  (make-list-natural  min (+ 1 stepnum)))
-         (actualvalue (xxget loc id '()))
-         (boxcolor (uiget 'color-default)))
-     (uiset idvalues stepvalues)
-     (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
-     (if (uiget 'sanemap)
-          (let* ((v (if (null? actualvalue) (list defaultvalue) actualvalue))
-                 (sw (* w 0.8))
-                 (bw (* h 0.8))
-               	 (bh (* h 0.8))
-                 (bx (+ x (* (/ sw stepnum) (- (car v) min))(- (* w 0.1) (/ bh 2)) ))
-                 (by (+ y  (* h 0.1)))
-              	 (ypos (-  y  (* h 0.1 1)))
-                 (i (/ sw stepnum))
-                 (entries (make-list-increment (* w 0.1) (+ 1 stepnum) i) ))
-          ;;  (display labels)
-	     (uiset identries entries)
-         (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; horizontal bar
-	     (glgui:draw-box bx by bw bh (if (null? actualvalue) boxcolor White ))  ;; sliderbox ;;currently always White
-         (if (and shownumber (not (null? actualvalue)))   (glgui:draw-text-center  bx  by bw bh (number->string (car v)) fnt Black))
-         ;; draw labels
-         (if (fx> (length labels) 1) (begin
-         (glgui:draw-text-left (+ x (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car labels) fnt White)
-         (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (/ bh 2)) (- (* w 0.8) bw) h (car (reverse labels)) fnt White)
-         (if (fx> (length labels) 2) (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (/ bh 2)) (- (* w 0.8) bw) h (cadr  labels) fnt White))
-         ))))
-      h
-  ))
-      
-
-(define (glgui:uiform-slider-input type x y . args)
-  (let* ((id (glgui:uiform-arg args 'id #f))
-         (identries (string-append (if (string? id) id (symbol->string id)) ":entries"))
-         (idvalues (string-append (if (string? id) id (symbol->string id)) ":values"))
-         (loc (glgui:uiform-arg args 'location 'db))
-         (entries (uiget identries))  ;; identifier in widget holds all entries
-         ;;(actual (xxget loc id '()))  ;; current position not needed
-         (values (uiget idvalues))
-         (actual (list-ref values (list-closest entries x))))
-   (if  id   (begin (uiset 'nodemap '()) (xxset loc id (list actual)))) ;; add new position of slider
-     ))
-
-(uiform-register 'slider glgui:uiform-slider-draw glgui:uiform-slider-input)
 ;; -------------
 ;; uiform graph
 
@@ -1528,6 +1413,72 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (uiform-register 'graph glgui:uiform-graph-draw #f)
 
 ;; -------------
+;; uiform slider
+
+(define (glgui:uiform-slider-draw x y w . args)
+  (let* ((h (glgui:uiform-arg args 'h (+ (uiget 'rowh) 20)))
+         (id (glgui:uiform-arg args 'id #f))
+         (min (glgui:uiform-arg args 'min 0))
+         (max (glgui:uiform-arg args 'max 100))
+         (shownumber (glgui:uiform-arg args 'number #t))  ;; Display value of slider
+         (labels (glgui:uiform-arg args 'labels '("" ""))) ;; Labels for the slider. needs min 2 (left, right), max 3 (left, middle, right) strings
+         (idstr (if (string? id) id (symbol->string id)))
+         (idpositions (string-append idstr ":positions")) ;; Stores the slider GUI positions (matching below values)
+         (idvalues (string-append idstr ":values")) ;; Stores the slider values list
+         (loc (glgui:uiform-arg args 'location 'db))
+         (fnt (uiget 'fnt))
+         (req (glgui:uiform-arg args 'required #f))
+         (stepnum (fx- max min))
+         (stepvalues  (make-list-natural min (+ 1 stepnum)))
+         (defaultvalue (glgui:uiform-arg args 'default (/ stepnum 2)))
+         (value (xxget loc id #f))
+         (boxcolor (glgui:uiform-arg args 'boxcolor (uiget 'color-default))))
+     (uiset idvalues stepvalues)
+     (if req
+       (uiform-required-set id (abs (- (abs y) (uiget 'offset 0) h))))
+     (if (uiget 'sanemap)
+       (let* ((fnth (glgui:fontheight fnt))
+              (sw (* w 0.8))
+              (bw (- h fnth))
+              (bh bw)
+              (bx (+ x (* (/ sw stepnum) (- value min)) (- (* w 0.1) (/ bh 2))))
+              (by y)
+	      (v (if value value defaultvalue))
+              (i (/ sw stepnum))
+              (positions (make-list-increment (* w 0.1) (+ 1 stepnum) i)))
+	     (uiset idpositions positions)
+         (glgui:draw-box (+ x (* w 0.1)) (+ by (/ bh 4)) sw (/ bh 2) boxcolor) ;; Horizontal bar
+	     (glgui:draw-box bx by bw bh (if value White boxcolor))  ;; Slider box
+         (if (and shownumber value)
+           (glgui:draw-text-center bx by bw bh (number->string v) fnt Black))
+         ;; draw labels if set
+	 (if (fx> (length labels) 1) (begin  
+         (glgui:draw-text-left (+ x (* w 0.1)) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (car labels) fnt White)
+         (glgui:draw-text-right (+ x bw (* w 0.1)) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (car (reverse labels)) fnt White)
+         (if (> (length labels) 2)
+           (glgui:draw-text-center (+ x (/ sw 2) (- (* w 0.1) (/ (- (* w 0.8) bw) 2))) (+ by (- h fnth)) (- (* w 0.8) bw) fnth (cadr  labels) fnt White))))))
+      h
+  ))
+
+
+(define (glgui:uiform-slider-input type x y . args)
+  (let* ((id (glgui:uiform-arg args 'id #f))
+         (idstr (if (string? id) id (symbol->string id)))
+         (idpositions (string-append idstr ":positions"))
+         (idvalues (string-append idstr ":values"))
+         (loc (glgui:uiform-arg args 'location 'db))
+         (positions (uiget idpositions))
+         (values (uiget idvalues))
+         (value (list-ref values (list-closest positions x))))
+    (if id
+      (begin
+        (uiset 'nodemap '())
+        (xxset loc id value))) ;; Save new value of slider
+ ))
+
+(uiform-register 'slider glgui:uiform-slider-draw glgui:uiform-slider-input)
+
+;; -------------
 ;; uiform modal
 
 (define (glgui:uiform-modal-draw g wgt)
@@ -1540,17 +1491,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content (uiget 'modal-content))
          (modal-height (uiget 'modal-height))
          (color-background (uiget 'color-low))
-         (color-box (uiget 'modal-boxcol))
-         (color-fnt (uiget 'modal-fntcol))
          (color-button (uiget 'color-default))
          (button1str (car (cadr content)))
          (button2str (if (= (length content) 3) (car (caddr content)) #f)))
     (glgui:draw-box x y w h color-background)
-    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height color-box)
+    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height Black)
     (let loop ((ss (reverse (string-split-width (car content) (fix (* 0.7 w)) fnt)))
                (ypos (+ y (* 0.5 h))))
       (if (fx> (length ss) 0) (begin
-        (glgui:draw-text-center x ypos w fnth (car ss) fnt color-fnt)  ;; XX
+        (glgui:draw-text-center x ypos w fnth (car ss) fnt White)  ;; XX
         (loop (cdr ss) (+ ypos fnth)))))
     (let ((bw (* 0.2 w))
           (bh (uiget 'rowh))
@@ -1558,10 +1507,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           (bx2 (+ x (* 0.6 w)))
           (by (+ y (* 0.5 (- h modal-height)) (* 0.1 modal-height))))
       (glgui:draw-box bx1 by bw bh color-button)
-      (glgui:draw-text-center  bx1 by bw bh button1str fnt color-fnt)
+      (glgui:draw-text-center  bx1 by bw bh button1str fnt White)
       (if button2str (begin 
         (glgui:draw-box bx2 by bw bh color-button)
-        (glgui:draw-text-center  bx2 by bw bh button2str fnt color-fnt)
+        (glgui:draw-text-center  bx2 by bw bh button2str fnt White)
       ))
     )
   ))
@@ -1606,7 +1555,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content-height (uiget 'contenth))
          (header-height (uiget 'headerh))
          (visible-height (- h header-height))
-         (maintime (uiget 'maintime #f))
          (fnt (uiget 'fnt))
          (hfnt (uiget 'hdfnt fnt))
          (bfnt (uiget 'btfnt fnt))
@@ -1658,7 +1606,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   (loop (cdr titles)))))))))
 
    ;; Date and time on all but the first page
-   (if (or maintime (not (eq? (uiget 'page) 'main)))
+   (if (not (eq? (uiget 'page) 'main))
      (let* ((dateh (glgui:fontheight fnt))
             (datey (+ y h (- (+ dateh 3)))))
        (glgui:draw-text-left (+ x 3) datey (* 0.95 w) dateh (seconds->string ##now "%Y-%m-%d") fnt White)
@@ -1723,13 +1671,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    (glCoreClipPop)
 
    (if modal-on (glgui:uiform-modal-draw g wgt))
-    
-       ;; If page changed mid draw (due to redirect), clear it now
+
+   ;; If page changed mid draw (due to redirect), clear it now
    (if glgui:uiform:remakenodemap
      (begin
        (uiset 'nodemap '())
        (set! glgui:uiform:remakenodemap #f)))
-
 ))
 
 (define (glgui:uiform-input g wgt type mx my)
@@ -1822,7 +1769,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         (newstr (substring oldstr 0 (- oldstrlen 1))))
                     (xxset focuslocation focusid (substring oldstr 0 (- oldstrlen 1)))
                     (if cb (cb focuslocation focusid newstr)))))
-              (else
+              ((fx> mx 31)
                 (let ((cb (uiget 'focuskeycb #f))
                         (newstr (string-append oldstr (string (integer->char mx)))))
                     (xxset focuslocation focusid newstr)
@@ -1870,12 +1817,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      'keypad-height 350
      'keypad-shift 0
      'keypad-on #f
-     'camerafolder "camera"    
-     ;; -------------
-     ;;modal
-     'modal-height 200                          
-     'modal-fntcol White  
-     'modal-boxcol Firebrick                                                 
+     'modal-height 200
      ;; -------------
      ;; colors
      'color-low     (color-fade Black 0.5)
@@ -1897,13 +1839,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      'btcolor (color-fade White 0.3)
      'fgcolor White
      'rounded #f
-     
      ;; -------------
    )))
    (set! uiform:g g)
    (set! uiform:wgt wgt)
-    (let ((camdir (string-append (system-directory) (system-pathseparator) (uiget 'camerafolder "."))))
-   (if (not (file-exists? camdir)) (create-directory camdir)))
    wgt))
 
 (define (sa-database->file t file)
