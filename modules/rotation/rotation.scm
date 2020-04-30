@@ -110,4 +110,36 @@ end-of-c-declare
 (define rotation-w (c-lambda () double "rotation_w")) ;;[3]: cos(θ/2)
 (define rotation-accuracy (c-lambda () double "rot_accuracy")) ;;[4]: estimated heading Accuracy (in radians) (-1 if unavailable)
 
+(define (rad angle)
+   (let ((pi (* (atan 1.) 4)))
+  (/ (* angle pi) 180.))
+  )
+
+(define (angle rad)
+  (let ((pi (* (atan 1.) 4)))
+  (* (/ rad pi) 180. ))
+  )
+
+(define (rotation-roll)
+; roll (x-axis rotation)
+ (let ((sinr-cosp (* 2.  (+ (* (rotation-z) (rotation-y)) (* (rotation-w) (rotation-x)))))
+       (cosr-cosp (- 1.   (* 2.  (+ (* (rotation-x)  (rotation-y)) (* (rotation-y) (rotation-y)))))))
+    (atan sinr-cosp  cosr-cosp))
+ )
+(define (rotation-pitch)
+; pitch (y-axis (rotation)
+(let ((pi (* (atan 1.) 4))
+      (sinp   (* 2.  (-  (* (rotation-w) (rotation-y)) (* (rotation-z) (rotation-x))))))
+    (if (< 1. (abs sinp))
+        (*  (/ pi 2. ) (sign sinp)) (asin sinp))
+  ))
+
+ (define (rotation-yaw)
+   ;; yaw (z-axis (rotation)
+    (let ((siny-cosp (* 2.  (+ (* (rotation-x) (rotation-y)) (* (rotation-w) (rotation-z))))) 
+          (cosy-cosp (- 1.   (* 2.  (+ (* (rotation-z) (rotation-z)) (* (rotation-y) (rotation-y)))))))
+    
+   (atan siny-cosp  cosy-cosp)
+))
+
 ;; eof
