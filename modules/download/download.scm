@@ -42,6 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define download:data (u8vector))
 (define download:datachunk 50000)
 (define download:datalen 0)
+(define download:header #f)
 
 ;; Helper function to split return string into header and body
 (define (download:split-headerbody str)
@@ -87,6 +88,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     (subu8vector-move! v 0 lv download:data download:datalen)
     (set! download:datalen (+ download:datalen lv))))
 
+(define (download:data-append-local! v)
+  (let ((lv (u8vector-length v))
+        (la (u8vector-length download:data))
+        (fh (open-output-file (list path:  (string-append (system-directory) (system-pathseparator) "download.tmp") append: #t))))
+    (if download:header 
+         (write-subu8vector v 0 lv fh)
+                   
+        (begin (set! download:data (u8vector-append download:data v))
+          (log-status "dowload:append:data " (u8vector->string download:data)) 
+          ;;test for header precence
+          (let* (( str (download:split-headerbody-vector  download:data))
+                 (l (length str)))
+             (if (and (string? (car str)) (fx> (string-length (car str)) 12)
+                         (or (string=? (substring (car str) 9 12) "201")
+                             (string=? (substring (car str) 9 12) "200")))
+             (begin (set! download:header #t)
+                            (log-status "dowload:append:header detected " str) 
+                          (write-subu8vector (cadr str) 0 (u8vector-length  (cadr str)) fh)
+                           ));
+            
+          )))
+         (close-output-port fh)
+))
+
 (define (download-list host folder)
   (let ((ret (httpsclient-open host)))
     (if (> ret 0)
@@ -119,17 +144,28 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    )
  ))
 
-(define (download-getfile host path filename)
-  (let ((ret (httpsclient-open host)))
+(define (download-getfile host path filename . localbuffer)
+  (let ((usebuffer (if (= (length localbuffer) 1) (car localbuffer) #f))
+        (ret (httpsclient-open host)))
+    (set! download:header #f)
     (if (> ret 0)
       (let* ((request (string-append "GET " path " HTTP/1.0\r\nHost: " host "\r\n\r\n"))
              (status  (httpsclient-send (string->u8vector request))))
+        (log-status "dowload:request: " request)
         (download:data-clear!)
         (let loop ((n 1))
           (if (fx<= n 0)
             (begin
               (httpsclient-close)
-              (let ((fileout (download:split-headerbody-vector (download:data->u8vector))))
+              (if usebuffer
+                (if download:header (begin 
+                                    (copy-file (string-append (system-directory) (system-pathseparator) "download.tmp")
+                                                (string-append (system-directory) (system-pathseparator) filename)) 
+                                      (delete-file (string-append (system-directory) (system-pathseparator) "download.tmp")) #t)
+                  #f)
+              (let* ((vec   (download:data->u8vector))
+                     (fileout (download:split-headerbody-vector vec)))
+                ;;(log-status "download:fileout: " fileout)
                 ;; Status is Success, save file
                 (if (and (string? (car fileout)) (fx> (string-length (car fileout)) 12)
                          (or (string=? (substring (car fileout) 9 12) "201")
@@ -148,20 +184,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                            (location-only (substring location-rest 18 (- location-stop 1)))
                            (host (substring location-only 0 (string-contains location-only "/")))
                            (path (substring location-only (string-contains location-only "/") (string-length location-only))))
+                      (log-status "download:redirect 302. repeat download-getfile call")
                       (download-getfile host path filename))
                     ;; Status is unknown, return false
-                    #f
+                    (begin (log-status "download:status unknown" fileout) #f)
                   )
                 )
               )
-            )
+            ))
            (let ((count (httpsclient-recv download:buf)))
-             (if (> count 0) (download:data-append! download:buf))
+             (if (> count 0) (if usebuffer (download:data-append-local! download:buf) (download:data-append! download:buf)))
              (loop count))
           )
         )
       )
-      #f
+      (begin (log-status "download:could not open host " host) #f)
     )
   ))
 
