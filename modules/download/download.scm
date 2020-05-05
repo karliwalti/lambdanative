@@ -154,6 +154,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (log-status "dowload:request: " request)
         (download:data-clear!)
         (let loop ((n 1))
+          (if usebuffer (thread-sleep! 0.001))  ;;thread safe operation
           (if (fx<= n 0)
             (begin
               (httpsclient-close)
