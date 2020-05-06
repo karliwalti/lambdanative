@@ -110,36 +110,71 @@ end-of-c-declare
 (define rotation-w (c-lambda () double "rotation_w")) ;;[3]: cos(θ/2)
 (define rotation-accuracy (c-lambda () double "rot_accuracy")) ;;[4]: estimated heading Accuracy (in radians) (-1 if unavailable)
 
+;; returns the rotation vector as list x y z w
+(define (get-rotation)
+  (let ((rot (list (rotation-x) (rotation-y) (rotation-z) (rotation-w))))
+     rot)
+  )
+;; quarternions are the rotation vector, returns list 
+(define get-quarternion (get-rotation) )
+
+;; converts into radians from angle number or list
 (define (rad angle)
    (let ((pi (* (atan 1.) 4)))
+     (if (list? angle) (map (lambda (a) (flo (/ (* a pi) 180.))) angle)
   (/ (* angle pi) 180.))
-  )
+  ))
 
+;; converts into angles from radians number or list
 (define (angle rad)
   (let ((pi (* (atan 1.) 4)))
+    (if (list? rad) (map (lambda (r) (flo (* (/ r pi) 180. ))) rad)
   (* (/ rad pi) 180. ))
-  )
+))
 
-(define (rotation-roll)
+;; gets roll from rotation list or current
+(define (rotation-roll . rot)
 ; roll (x-axis rotation)
- (let ((sinr-cosp (* 2.  (+ (* (rotation-z) (rotation-y)) (* (rotation-w) (rotation-x)))))
-       (cosr-cosp (- 1.   (* 2.  (+ (* (rotation-x)  (rotation-y)) (* (rotation-y) (rotation-y)))))))
+ (let* ((v (if (> (length rot) 0) rot (get-rotation)))
+        (x (car v))(y (cadr v))(z (caddr v))(w (cadddr v))
+        (sinr-cosp (* 2.  (+ (* z y) (* w x))))
+       (cosr-cosp (- 1.   (* 2.  (+ (* x  y) (* y y))))))
     (atan sinr-cosp  cosr-cosp))
- )
-(define (rotation-pitch)
+)
+
+;; gets pitch from rotation list or current
+(define (rotation-pitch . rot)
 ; pitch (y-axis (rotation)
-(let ((pi (* (atan 1.) 4))
-      (sinp   (* 2.  (-  (* (rotation-w) (rotation-y)) (* (rotation-z) (rotation-x))))))
+(let* ((v (if (> (length rot) 0) rot (get-rotation)))
+        (x (car v))(y (cadr v))(z (caddr v))(w (cadddr v))
+      (pi (* (atan 1.) 4))
+      (sinp   (* 2.  (-  (* w y) (* z x)))))
     (if (< 1. (abs sinp))
         (*  (/ pi 2. ) (sign sinp)) (asin sinp))
   ))
 
- (define (rotation-yaw)
-   ;; yaw (z-axis (rotation)
-    (let ((siny-cosp (* 2.  (+ (* (rotation-x) (rotation-y)) (* (rotation-w) (rotation-z))))) 
-          (cosy-cosp (- 1.   (* 2.  (+ (* (rotation-z) (rotation-z)) (* (rotation-y) (rotation-y)))))))
-    
+;; gets yaw from rotation list or current
+(define (rotation-yaw . rot)
+;; yaw (z-axis (rotation)
+(let* ((v (if (> (length rot) 0) rot (get-rotation)))
+       (x (car v))
+       (y (cadr v))
+       (z (caddr v))
+       (w (cadddr v))
+       (siny-cosp (* 2.  (+ (* x y) (* w z)))) 
+       (cosy-cosp (- 1.   (* 2.  (+ (* z z) (* y y))))))
    (atan siny-cosp  cosy-cosp)
 ))
+
+;; get roll from rotation list or current
+(define (get-orientation-angles . rot)
+  (let* ((v (if (> (length rot) 0) rot (get-rotation)))
+         (r (rotation-roll ))
+         (p (rotation-pitch))
+         (y (rotation-yaw ))
+         (o (list r p y)))
+     (angle o))
+ 
+  )
 
 ;; eof
