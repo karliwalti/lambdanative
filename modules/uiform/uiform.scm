@@ -1328,13 +1328,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                        ((center) glgui:draw-text-center)
                        ((left) glgui:draw-text-left)
                        ((right) glgui:draw-text-right))))
-             (glgui:draw-box (+ x (* w 0.1)) (+ y dy 1) (* w 0.8) (- h 2) boxcolor)
+             (if (car ss) (glgui:draw-box (+ x (* w 0.1)) (+ y dy 1) (* w 0.8) (- h 2) (color-fade boxcolor 0.5))  (glgui:draw-box (+ x (* w 0.1)) (+ y dy 1) (* w 0.8) (- h 2) boxcolor))
              (if radio
-                 (glgui:draw-pixmap-center bx by bw bh circle.img boxcolor)
+                 (glgui:draw-pixmap-center bx by bw bh circle.img (color-fade White 0.3))
                  (glgui:draw-box bx by bw bh boxcolor))
              (if (car ss) (if radio (glgui:draw-pixmap-stretch (+ bx shift) (+ shift by) (* bw  scale) (* bh scale) circle.img White) 
                                     (glgui:draw-pixmap-center bx by bw bh check.img White)))
-             (drawproc (+ bx bw) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White)))
+             (drawproc (+ bx bw 5) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White)))
          (loop (cdr es)(cdr ss)(+ dy h)))))
   ))
       
