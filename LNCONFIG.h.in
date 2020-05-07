@@ -98,6 +98,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define GUI_SEASCAPE   3
 #define GUI_UPSIDEDOWN 4
 
+
+// sensor events
+#define EVENT_SENSORS 	40
+#define SEN_ROTATION 	41
+#define SEN_ACCEL 		42
+#define SEN_GYRO 		43
+
 // scheme prototypes
 
 #ifdef __cplusplus

@@ -111,6 +111,10 @@ end-of-c-declare
 (define GUI_PORTRAIT ((c-lambda () int "___result = GUI_PORTRAIT;")))
 (define GUI_UPSIDEDOWN ((c-lambda () int "___result = GUI_UPSIDEDOWN;")))
 
+;;Sensors
+(define EVENT_SENSORS ((c-lambda () int "___result = EVENT_SENSORS;")))
+(define SEN_ROTATION ((c-lambda () int "___result = SEN_ROTATION;")))
+
 (define app:runflag 1)
 (define app:width #f)
 (define app:height #f)
@@ -162,6 +166,9 @@ end-of-c-declare
         (hook:event t 0 0)
         (if app:android? (##thread-heartbeat!))
       )
+;;      ((fx= t EVENT_SENSORS)
+ ;       (if app:android? (##thread-heartbeat!))
+  ;    )
       ((fx= t EVENT_IDLE)
         (if app:suspended (begin
           (hook:event t 0 0)

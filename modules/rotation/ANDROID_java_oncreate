@@ -1,2 +1,2 @@
 mRot = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
-mSensorManager.registerListener(this, mRot, SensorManager.SENSOR_DELAY_GAME);
+mSensorManager.registerListener(this, mRot, SensorManager.SENSOR_DELAY_GAME);  //SENSOR_DELAY_FASTEST
