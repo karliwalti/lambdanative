@@ -36,6 +36,20 @@ OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 |#
 
+
+
+(define (glgui:draw-pixmap-center-stretch x y w h img color)
+  (let* ((sw (car img))
+        (sh (cadr img))
+        (scx (if w (/ w sw) (if h (/ h sh) 1))) ;;scale 
+        (scy (if h (/ h sh) scx))
+        (nw (if w w (fix (* sw scx))))
+        (nh (if h h (fix (* sh scy))))
+        (x0 (+ x (/ nw  2)))
+        (y0 (+ y (/ nh  2))))
+  (glCoreColor color)
+  (apply glCoreTextureDraw (append (list x0 y0 nw nh) (cddr img) (list 0.)))))
+
 ;; -------------
 ;; uiform form-driven universal widget
 
@@ -982,9 +996,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (delete-file tmpimagepath)))
       (if (uiget 'sanemap) (begin
         (if img
-            (glgui:draw-pixmap-center x y w h img White)
+            (begin (glgui:draw-pixmap-center x y w h img White) (glgui:draw-pixmap-center (fix (- (+ x (* w 0.5))  (* w scale 0.5))) y (fix (* w scale)) h  camera.img White)
+              (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo") fnt White))
             (begin
               (glgui:draw-box (- (+ x (* w 0.5)) (* w scale 0.5)) y (* w scale) h (uiget 'color-default))
+              (glgui:draw-pixmap-center (- (+ x (* w 0.5)) (* w scale 0.5)) y (* w scale) h  camera.img White)
               (glgui:draw-text-center x y w h (if (or photo-taken photo-saved)
                 (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo")
                 (glgui:uiform-arg args 'default "Tap to take photo")) fnt White)))
@@ -1481,7 +1497,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;; -------------
 ;; uiform modal
 
-(define (glgui:uiform-modal-draw g wgt)
+(define (glgui:uiform-modal-draw g wgt )
   (let* ((x (flo (uiget 'x)))
          (y (flo (uiget 'y)))
          (w (flo (uiget 'w)))
@@ -1491,11 +1507,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content (uiget 'modal-content))
          (modal-height (uiget 'modal-height))
          (color-background (uiget 'color-low))
+         (color-modal (uiget 'color-modal Black))
          (color-button (uiget 'color-default))
          (button1str (car (cadr content)))
          (button2str (if (= (length content) 3) (car (caddr content)) #f)))
     (glgui:draw-box x y w h color-background)
-    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height Black)
+    (glgui:draw-box (+ x (* 0.1 w)) (+ y (* 0.5 (- h modal-height))) (* 0.8 w) modal-height color-modal)
     (let loop ((ss (reverse (string-split-width (car content) (fix (* 0.7 w)) fnt)))
                (ypos (+ y (* 0.5 h))))
       (if (fx> (length ss) 0) (begin
