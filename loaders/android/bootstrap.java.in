@@ -113,7 +113,7 @@ public class @SYS_APPNAME@ extends Activity implements @ANDROID_JAVA_IMPLEMENTS@
     @ANDROID_JAVA_ONCREATE@
 
     // start EVENT_IDLE 
-    idle_tm.scheduleAtFixedRate(idle_task, 0, 5);
+    idle_tm.scheduleAtFixedRate(idle_task, 0, 10);
 
     nativeInstanceInit();
   }
