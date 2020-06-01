@@ -992,7 +992,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (idname (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) ":filename"))
          (filename (glgui:uiform-arg args 'filename (uiget idname #f)))
          (tmpimagepath (if filename (string-append (system-directory) (system-pathseparator) "tmp_" filename) #f))
-         (newfilepath  (if filename (string-append (system-directory) (system-pathseparator) filename) #f))
+         (newfilepath  (if filename (string-append (system-directory)(system-pathseparator) (uiget 'camerafolder ".") (system-pathseparator) filename) #f))
          (photo-taken (and tmpimagepath (file-exists? tmpimagepath)))
          (photo-saved (and newfilepath  (file-exists? newfilepath)))
          (loc (glgui:uiform-arg args 'location 'db))
@@ -1911,6 +1911,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    )))
    (set! uiform:g g)
    (set! uiform:wgt wgt)
+   (let ((camdir (string-append (system-directory) (system-pathseparator) (uiget 'camerafolder "."))))
+   (if (not (file-exists? camdir)) (create-directory camdir)))
    wgt))
 
 (define (sa-database->file t file)
