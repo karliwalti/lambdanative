@@ -1550,8 +1550,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content (uiget 'modal-content))
          (modal-height (uiget 'modal-height))
          (color-background (uiget 'color-low))
-         (color-modal (uiget 'color-modal Black))
+         (color-modal (uiget 'modal-boxcol Black))
          (color-button (uiget 'color-default))
+         (color-fnt (uiget 'modal-fntcol White))
          (button1str (car (cadr content)))
          (button2str (if (= (length content) 3) (car (caddr content)) #f)))
     (glgui:draw-box x y w h color-background)
@@ -1559,7 +1560,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     (let loop ((ss (reverse (string-split-width (car content) (fix (* 0.7 w)) fnt)))
                (ypos (+ y (* 0.5 h))))
       (if (fx> (length ss) 0) (begin
-        (glgui:draw-text-center x ypos w fnth (car ss) fnt White)  ;; XX
+        (glgui:draw-text-center x ypos w fnth (car ss) fnt color-fnt)  ;; XX
         (loop (cdr ss) (+ ypos fnth)))))
     (let ((bw (* 0.2 w))
           (bh (uiget 'rowh))
@@ -1567,10 +1568,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           (bx2 (+ x (* 0.6 w)))
           (by (+ y (* 0.5 (- h modal-height)) (* 0.1 modal-height))))
       (glgui:draw-box bx1 by bw bh color-button)
-      (glgui:draw-text-center  bx1 by bw bh button1str fnt White)
+      (glgui:draw-text-center  bx1 by bw bh button1str fnt color-fnt)
       (if button2str (begin 
         (glgui:draw-box bx2 by bw bh color-button)
-        (glgui:draw-text-center  bx2 by bw bh button2str fnt White)
+        (glgui:draw-text-center  bx2 by bw bh button2str fnt color-fnt)
       ))
     )
   ))
@@ -1615,6 +1616,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (content-height (uiget 'contenth))
          (header-height (uiget 'headerh))
          (visible-height (- h header-height))
+         (maintime (uiget 'maintime #f))
          (fnt (uiget 'fnt))
          (hfnt (uiget 'hdfnt fnt))
          (bfnt (uiget 'btfnt fnt))
@@ -1666,7 +1668,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   (loop (cdr titles)))))))))
 
    ;; Date and time on all but the first page
-   (if (not (eq? (uiget 'page) 'main))
+   (if (or maintime (not (eq? (uiget 'page) 'main)))
      (let* ((dateh (glgui:fontheight fnt))
             (datey (+ y h (- (+ dateh 3)))))
        (glgui:draw-text-left (+ x 3) datey (* 0.95 w) dateh (seconds->string ##now "%Y-%m-%d") fnt White)
@@ -1830,7 +1832,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         (newstr (substring oldstr 0 (- oldstrlen 1))))
                     (xxset focuslocation focusid (substring oldstr 0 (- oldstrlen 1)))
                     (if cb (cb focuslocation focusid newstr)))))
-              ((fx> mx 31)
+              ((fx> mx 31) ;(else
                 (let ((cb (uiget 'focuskeycb #f))
                         (newstr (string-append oldstr (string (integer->char mx)))))
                     (xxset focuslocation focusid newstr)
@@ -1878,7 +1880,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
      'keypad-height 350
      'keypad-shift 0
      'keypad-on #f
-     'modal-height 200
+     'camerafolder "camera"    
+     ;; -------------
+     ;;modal
+     'modal-height 200                          
+     'modal-fntcol White  
+     'modal-boxcol Firebrick                  
      ;; -------------
      ;; colors
      'color-low     (color-fade Black 0.5)
