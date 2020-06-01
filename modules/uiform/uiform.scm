@@ -752,47 +752,51 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
          (ampm (glgui:uiform-arg args 'ampm #f))
          (loc (glgui:uiform-arg args 'location 'db))
          (req (glgui:uiform-arg args 'required #f))
+         (forcefocus (glgui:uiform-arg args 'focus #f))
          (password  (glgui:uiform-arg args 'password #f))
-         (default "HH:MM")
+         (direct (glgui:uiform-arg args 'direction 0))
+         (default (if direct "00:00" "HH:MM"))
          (focusid  (uiget 'focusid))
-         (hasfocus (eq? focusid id))
+         (hasfocus (eq? focusid id) )
+         (warning  (xxget 'st 'timewarning #f))
+         (fgcolor (if warning Red White))
          (idvalue (if id (xxget loc id #f)))
-         (fgcolor White)
          (idvaluestr (if (and (string? idvalue) (or hasfocus (fx> (string-length idvalue) 0)))
                        idvalue
                        (begin
                          (set! fgcolor (uiget 'color-default))
                          default)))
-         (ampmvalue (if id (xxget loc ampm #f)))
+         (ampmvalue (if id (xxget loc 'ampm #f)))
          (defaultampm (glgui:uiform-arg args 'defaultampm "AM"))
          (ampmvaluestr (if (string? ampmvalue)
                              ampmvalue
                              (begin
                                ;; If no ampmvalue, set it - always has a value displayed
-                               (xxset loc ampm defaultampm)
+                               (if ampm (xxset loc 'ampm defaultampm))
                                defaultampm)))
          (defcolor (uiget 'color-default))
          (selcolor (uiget 'color-select))
+         
          (buttoncolor White)
          (indent (glgui:uiform-arg args 'indent
             (if (string=? label "") 0.1 0.3)))
-         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) 0))
+         (txtw  (if (and focusid idvalue idvaluestr) (glgui:stringwidth idvaluestr fnt) (if direct (glgui:stringwidth default fnt) 0)))
          (txth  (if focusid (glgui:fontheight fnt) 0))
          (ampmw (* w 0.2)))
-    
      (if (uiget 'sanemap) (begin
        (if req  (uiform-required-set id  (abs (- (abs y) (uiget 'offset 0) h )) ))
        (glgui:draw-text-right x y (- (* w indent) 10) h label fnt White)
        (glgui:draw-box (+ x (* w indent)) y (- (* w (- 1. indent)) ampmw 4) h (if hasfocus selcolor defcolor))
-       (glgui:draw-box (+ x (- w ampmw 2)) y ampmw h defcolor)
-       (glgui:draw-text-center (+ x (- w ampmw 2)) y ampmw h ampmvaluestr fnt White)
+       (if ampm (begin (glgui:draw-box (+ x (- w ampmw 2)) y ampmw h defcolor)
+       (glgui:draw-text-center (+ x (- w ampmw 2)) y ampmw h ampmvaluestr fnt White)))
        (if idvaluestr (glgui:draw-text-left (+ x (* w indent) 10) y (- (* w (- 1. indent)) ampmw 10) h idvaluestr fnt fgcolor))
+       (if warning (glgui:draw-text-left (+ x (* w indent)) (+ y h) (- (* w (- 1. indent)) ampmw 4) h (glgui:uiform-arg args 'timewarning "Wrong time format!") fnt Red))
        (if hasfocus
           (let* ((cx (+ x (* w indent) 10 txtw 2))
                  (cy (+ y (/ (- h txth) 2.)))
                  (cw 3) (ch txth)
                  (cc (if (odd? (fix (* 2 ##now))) White selcolor)))
-             (glgui:draw-box cx cy cw ch cc)))
+             (glgui:draw-box cx cy cw ch cc)))                 
        ))
      h
   ))
