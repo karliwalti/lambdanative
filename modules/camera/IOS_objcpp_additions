@@ -103,7 +103,7 @@
     CGContextRelease(ctx);
     CGImageRelease(cgimg);
 
-    NSData* pickedData = UIImageJPEGRepresentation(fixedimg, 0.6);
+    NSData* pickedData = UIImageJPEGRepresentation(fixedimg, 0.8);
 
     [pickedData writeToFile:fileString atomically:YES];
   }

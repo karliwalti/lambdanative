@@ -64,7 +64,7 @@ protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     } catch (OutOfMemoryError err) { }
     try {
       FileOutputStream out = new FileOutputStream(camera_tmp);
-      tgt_bitmap.compress(Bitmap.CompressFormat.JPEG, 50, out);
+      tgt_bitmap.compress(Bitmap.CompressFormat.JPEG, 80, out);
       out.flush();
       out.close();
     } catch (IOException e) { }
