@@ -911,10 +911,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   (let ((h (glgui:uiform-arg args 'height 32))
         (defcolor (uiget 'color-default)) 
         (selcolor (uiget 'color-select)) 
+        (display (glgui:uiform-arg args 'display #f))
+        (fnt (uiget 'fnt))
         (value (min 1. (max 0. (glgui:uiform-arg args 'value 0.)))))
      (if (uiget 'sanemap) (begin 
        (glgui:draw-box (+ x (* w 0.1)) y (* w 0.8) h defcolor)
        (glgui:draw-box (+ x (* w 0.1) 2) (+ y 2) (* value (- (* w 0.8) 4.)) (- h 4) selcolor)
+       (if display (glgui:draw-text-center x (+ y 3) w (- h 10) (string-append (number->string (fix (* 100 value))) "%") fnt White))
      ))
   h))
 
@@ -1014,9 +1017,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               (gdImageDestroy gd)
               (gdImageDestroy gd2)
               (gdFileClose fd)
-              ;;(if img (xxset loc filename img))
+              (if img (uiset filename img))
                img)
-            (xxget loc filename #f))))
+            (uiget filename #f))))
          (hp (if img (cadr img) (fix (* w scale))))
          (wp (if img (car img) (fix (* w scale)))) ;;width pic/img
          (wi (fix (* w scale 0.5))) ;;width icon
