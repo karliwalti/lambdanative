@@ -1014,7 +1014,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               (gdImageDestroy gd)
               (gdImageDestroy gd2)
               (gdFileClose fd)
-              (if img (xxset loc filename img)) img)
+              ;;(if img (xxset loc filename img))
+               img)
             (xxget loc filename #f))))
          (hp (if img (cadr img) (fix (* w scale))))
          (wp (if img (car img) (fix (* w scale)))) ;;width pic/img
