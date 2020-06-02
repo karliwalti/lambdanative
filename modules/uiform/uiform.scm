@@ -1016,7 +1016,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               (gdFileClose fd)
               (if img (xxset loc filename img)) img)
             (xxget loc filename #f))))
-         (h (if img (cadr img) (fix (* w scale))))
+         (hp (if img (cadr img) (fix (* w scale))))
+         (wp (if img (car img) (fix (* w scale)))) ;;width pic/img
+         (wi (fix (* w scale 0.5))) ;;width icon
          (fnt (uiget 'fnt)))
       (if photo-taken (begin
         (if archive (begin
@@ -1026,16 +1028,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (delete-file tmpimagepath)))
       (if (uiget 'sanemap) (begin
         (if img
-            (begin (glgui:draw-pixmap-center x y w h img White) (glgui:draw-pixmap-center (fix (- (+ x (* w 0.5))  (* w scale 0.5))) y (fix (* w scale)) h  camera.img White)
-              (glgui:draw-text-center x y w h (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo") fnt White))
+            (begin (glgui:draw-pixmap-center x y w hp img White) (glgui:draw-pixmap-center (fix (- (+ x (* w 0.5)) (* wi 0.5))) y wi wi  camera.img White)
+              (glgui:draw-text-center x (- y (* 0.5 hp) 12) w hp (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap camera symbol to take a different photo") fnt White))
             (begin
-              (glgui:draw-box (- (+ x (* w 0.5)) (* w scale 0.5)) y (* w scale) h (uiget 'color-default))
-              (glgui:draw-pixmap-center (- (+ x (* w 0.5)) (* w scale 0.5)) y (* w scale) h  camera.img White)
-              (glgui:draw-text-center x y w h (if (or photo-taken photo-saved)
-                (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap here to take a different photo")
-                (glgui:uiform-arg args 'default "Tap to take photo")) fnt White)))
+              (glgui:draw-box (- (+ x (* w 0.5)) (* wp 0.5)) y wp hp (uiget 'color-default))
+              (glgui:draw-pixmap-center (- (+ x (* w 0.5)) (* wi 0.5))  y wi wi  camera.img White)
+              (glgui:draw-text-center x (- y (* 0.5 hp) 12) w hp (if (or photo-taken photo-saved)
+                (glgui:uiform-arg args 'defaultcomplete "Photo taken.\n Tap camera symbol to take a different photo")
+                (glgui:uiform-arg args 'default "Tap camera symbol to take photo")) fnt White)))
       ))
-    h
+    hp
   ))
 
 (define (glgui:uiform-camera-input type x y . args)
