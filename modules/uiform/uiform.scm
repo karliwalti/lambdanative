@@ -1062,6 +1062,80 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (uiform-register 'camera glgui:uiform-camera-draw glgui:uiform-camera-input)
 
 ;; --------------
+;; video support
+
+(define (glgui:uiform-video-draw x y w . args)
+  (let* ((id (glgui:uiform-arg args 'id #f))
+         (idname (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) ":filename"))
+         (filename (glgui:uiform-arg args 'filename (uiget idname #f)))
+         (tmpimagepath (if filename (string-append (system-directory) (system-pathseparator) "tmp_" filename) #f))
+         (newfilepath  (if filename (string-append (system-directory)(system-pathseparator) (uiget 'camerafolder ".") (system-pathseparator) filename) #f))
+         (photo-taken (and tmpimagepath (file-exists? tmpimagepath)))
+         (photo-saved (and newfilepath  (file-exists? newfilepath)))
+         (loc (glgui:uiform-arg args 'location 'db))
+         (archive (glgui:uiform-arg args 'archive #f))
+         (scale (glgui:uiform-arg args 'scale 0.8))
+         (display (glgui:uiform-arg args 'display #t))
+         (high-quality (glgui:uiform-arg args 'high-quality #t))
+         (img (if (not display) #f (if photo-taken
+            (let* ((fd (gdFileOpen tmpimagepath "r"))
+                   (gd (gdImageCreateFromJpeg fd))
+                   (w0 (gdImageSX gd))
+                   (h0 (gdImageSY gd))
+                   (w1 (fix (* scale w)))
+                   (h1 (fix (/ (* h0 w1) w0)))
+                   (gd2 (gdImageCreateTrueColor w1 h1))
+                   (img (begin 
+                     ((if high-quality gdImageCopyResampled gdImageCopyResized) gd2 gd 0 0 0 0 w1 h1 w0 h0)
+                     (gd->img gd2))))
+              (gdImageDestroy gd)
+              (gdImageDestroy gd2)
+              (gdFileClose fd)
+              (if img (uiset filename img))
+               img)
+            (uiget filename #f))))
+         (hp (if img (cadr img) (fix (* w scale))))
+         (wp (if img (car img) (fix (* w scale)))) ;;width pic/img
+         (wi (fix (* w scale 0.5))) ;;width icon
+         (fnt (uiget 'fnt)))
+      (if photo-taken (begin
+        (if archive (begin
+          (if (file-exists? newfilepath) (delete-file newfilepath))
+          (copy-file tmpimagepath newfilepath)
+          (xxset loc id newfilepath)))
+        (delete-file tmpimagepath)))
+      (if (uiget 'sanemap) (begin
+        (if img
+            (begin (glgui:draw-pixmap-center x y w hp img White) (glgui:draw-pixmap-center (fix (- (+ x (* w 0.5)) (* wi 0.5))) y wi wi  camera.img White)
+              (glgui:draw-text-center x (- y (* 0.5 hp) 12) w hp (glgui:uiform-arg args 'defaultcomplete "Video taken.\n Tap camera symbol to take a different video") fnt White))
+            (begin
+              (glgui:draw-box (- (+ x (* w 0.5)) (* wp 0.5)) y wp hp (uiget 'color-default))
+              (glgui:draw-pixmap-center (- (+ x (* w 0.5)) (* wi 0.5))  y wi wi  camera.img White)
+              (glgui:draw-text-center x (- y (* 0.5 hp) 12) w hp (if (or photo-taken photo-saved)
+                (glgui:uiform-arg args 'defaultcomplete "Video taken.\n Tap camera symbol to take a different photo")
+                (glgui:uiform-arg args 'default "Tap camera symbol to take video")) fnt White)))
+      ))
+    hp
+  ))
+
+(define (glgui:uiform-video-input type x y . args)
+  (let* ((id (glgui:uiform-arg args 'id #f))
+         (loc (glgui:uiform-arg args 'location 'db))
+         (filename (glgui:uiform-arg args 'filename (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) "_" (seconds->string ##now "%Y%d%m_%H%M%S")  ".mp4")))
+         (idname (string-append (if (string? id) id (if (symbol? id) (symbol->string id) "")) ":filename"))
+         (imagepath (if filename (string-append (system-directory) (system-pathseparator) "tmp_" filename) #f)))
+    (if imagepath (begin
+      (uiset idname filename)
+      (if (file-exists? imagepath) (delete-file imagepath))
+      (camera-start-video imagepath)
+      (uiset 'nodemap '())
+      (if (file-exists? imagepath)(xxset loc id imagepath))
+    ))
+ ))
+
+(uiform-register 'video glgui:uiform-video-draw glgui:uiform-video-input)
+
+;; --------------
 ;; radio box
 
 (define (glgui:uiform-radio-draw x y w . args)
