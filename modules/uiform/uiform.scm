@@ -1468,12 +1468,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                  (begin
                   (let loop ((tx (reverse wrappedtext)))
        		(if (> (length tx) 0) (begin
-           (drawproc (+ bx bw) ypos (- (* w 0.8) bw) h (car tx) fnt White)
+           (drawproc (+ bx bw (* h 0.1)) ypos (- (* w 0.8) bw) h (car tx) fnt White)
          ;;(set! toth (+ toth h))
           (set! ypos (+ ypos (/ h (+ numlines 1))))
          (loop (cdr tx)))))
                   )
-             (drawproc (+ bx bw) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White))))
+             (drawproc (+ bx bw (* h 0.1)) (+ y dy) (- (* w 0.8) bw) h (car es) fnt White))))
          (loop (cdr es)(cdr ss)(+ dy h)))))
   ))
       
