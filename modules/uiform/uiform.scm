@@ -1748,10 +1748,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                   (loop (cdr titles)))))))))
 
    ;; Date and time on all but the first page
-   (if (or maintime (not (eq? (uiget 'page) 'main)))
+   (if (and (uiget 'disptime #t) (or maintime (not (eq? (uiget 'page) 'main))))
      (let* ((dateh (glgui:fontheight fnt))
             (datey (+ y h (- (+ dateh 3)))))
-       (glgui:draw-text-left (+ x 3) datey (* 0.95 w) dateh (seconds->string ##now "%Y-%m-%d") fnt White)
+       (glgui:draw-text-left (+ x 13) datey (* 0.95 w) dateh (seconds->string ##now "%Y-%m-%d") fnt White)
        (glgui:draw-text-center (+ x (* 0.25 w)) datey (* 0.5 w) dateh (seconds->string ##now "%H:%M") fnt White)))
 
    (if (and (list? prv) (> (length prv) 1))
@@ -2004,5 +2004,129 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   (list->table (with-input-from-file 
     (string-append (system-directory) (system-pathseparator) file) 
     (lambda () (read)))))
+  
+  (define (glgui:uiform-timer-draw x y w . args)
+  (let* ((bfnt (uiget 'btfnt))
+         (now ##now)
+         (loc (glgui:uiform-arg args 'location 'db))
+         (countdown (glgui:uiform-arg args 'countdown #f)) ;; run forward or backward
+         (settime (glgui:uiform-arg args 'settime (if countdown 60 #f)))  ;; starttime for countdown or alarmtime for forwars (set to #f for infinite)
+         (starttime  (stget 'stime  #f))  ;stores initialization time in sec
+         (stime (if starttime starttime now))
+         (etime  (if countdown (- settime (- now stime)) (- now stime))) ;;stores elapsed time in sec
+         (string (if (> etime 0.) (seconds->string (fix etime) "%M:%S")  "00:00"))
+         (fntsize (glgui:uiform-arg args 'size 'normal))
+         (fnt (cond
+                 ((and (eq? fntsize 'normal) bfnt) bfnt)
+                 ((eq? fntsize 'normal) (uiget 'fnt))
+                 ((eq? fntsize 'small) (uiget 'smlfnt))
+                 ((eq? fntsize 'big) (uiget 'bigfnt))
+                 ((eq? fntsize 'header) (uiget 'hdfnt))))
+         (fnth (glgui:fontheight fnt))
+         (color (glgui:uiform-arg args 'color White))
+         (bgcolor (glgui:uiform-arg args 'button-color (uiget 'background-color Black)))
+         (alarmcolor (glgui:uiform-arg args 'alarm-color Red))
+         (alarm (if (or (< etime 0) (if settime (> etime settime) #t)) #t #f ))
+         (h (* fnth 4))
+         (wt (* (string-length string) fnth 1.5))
+         )
+    
+    ;(if (not starttime) (stset 'stime stime)) ;;initialize
+     (if (uiget 'sanemap) (begin
+         (glgui:draw-box (+ x (* (- w (* wt 2)) 0.5)) y (* wt 2) h (if alarm alarmcolor bgcolor))
+         (glgui:draw-text-center x (+ y (* (- h fnth) 0.5)) w fnth string fnt color) 
+             
+       ))
+     h
+  ))
+
+  (define (glgui:uiform-timer-input type x y . args)
+ (let* ((now ##now)
+        (enablereset (glgui:uiform-arg args 'reset #f));;reset timer on click
+        ) 
+      
+      (if enablereset (stset  'stime now))
+   
+ ))
+  
+  (define (uiform-timer-reset)
+    (stset  'stime #f)
+    )
+
+  
+  (uiform-register 'timer glgui:uiform-timer-draw glgui:uiform-timer-input)
+  
+  
+(define (glgui:uiform-level-draw x y w . args)
+  (let* ((color (glgui:uiform-arg args 'color White))
+         (h w)
+         (b (glgui:uiform-arg args 'size 16))
+         (cb (fx* 2 b))
+         (mb (fx* 2 cb))
+         (lb (fx* 6 cb))
+         (xpos  (+ (* (accel-x) w 0.5) (* w 0.5) (* b -0.5)))
+         (ypos  (+ (* (accel-y) w 0.5) (* w 0.5) (* b -0.5)))
+         )
+    
+    ;(if (not starttime) (stset 'stime stime)) ;;initialize
+     (if (uiget 'sanemap) (begin
+         (glgui:draw-box  (+ x (- (* w 0.5) (* lb 0.5))) (+ y (- (* w 0.5) (* lb 0.5))) lb lb  DarkGreen )  ;Black  
+         (glgui:draw-box  (+ x (- (* w 0.5) (* mb 0.5))) (+ y (- (* w 0.5) (* mb 0.5))) mb mb  Green )  ;Black                              
+         (glgui:draw-box  (+ x (- (* w 0.5) (* cb 0.5))) (+ y (- (* w 0.5) (* cb 0.5))) cb cb  Black )  ;Black                 
+         (glgui:draw-box  (+ x xpos) (+ y ypos) b b White );White
+             
+       ))
+     h
+  ))
+
+  (define (glgui:uiform-level-input type x y . args)
+#f
+    )
+  
+
+  
+  (uiform-register 'level glgui:uiform-level-draw glgui:uiform-level-input)
+  
+    ;; --------------
+;; uiform extension with tapping support
+
+(define (glgui:uiform-duotap-draw x y w . args)
+  (let* ((bfnt (uiget 'btfnt))
+         (fntsize (glgui:uiform-arg args 'size 'big))
+         (fnt (cond
+                 ((and (eq? fntsize 'normal) bfnt) bfnt)
+                 ((eq? fntsize 'normal) (uiget 'fnt))
+                 ((eq? fntsize 'small) (uiget 'smlfnt))
+                 ((eq? fntsize 'big) (uiget 'bigfnt))
+                 ((eq? fntsize 'header) (uiget 'hdfnt))))
+         (wb 100)
+         (ws 50)
+         (hb  wb)
+         (fnth (glgui:fontheight fnt))
+         (color (glgui:uiform-arg args 'color White))
+         (bgcolor (glgui:uiform-arg args 'button-color (uiget 'button-color (uiget 'color-default))))
+         (r (glgui:uiform-arg args 'rounded #f))
+         (strings (string-split-width (glgui:uiform-arg args 'text "") (fix (* 0.7 w)) fnt))
+         (h (glgui:uiform-arg args 'h (+ 32 (* (length strings) fnth))))
+         (indent (glgui:uiform-arg args 'indent 0.1)))
+     (if (uiget 'sanemap) (begin
+                           ;;right
+       ((if r glgui:draw-rounded-box glgui:draw-box) (+ x (* 0.5 (- w (* wb 2) ws))) y wb  hb bgcolor)
+       
+           (glgui:draw-text-center (+ x (* 0.5 (- w (* wb 2) ws)) (* 0.5 wb)) (+ y (* hb 0.5)) wb fnth "L" fnt color) 
+                            ;;left
+        ((if r glgui:draw-rounded-box glgui:draw-box) (+ x (* 0.5 (- w (* wb 2) ws)) wb ws) y wb  hb bgcolor)
+       
+           (glgui:draw-text-center (+ x (* 0.5 (- w (* wb 2) ws)) (* 0.5 wb) wb ws ) (+ y (* hb 0.5)) wb fnth "R" fnt color)        
+           )
+       )
+     h
+  ))
+
+(define (glgui:uiform-duotap-input type x y . args)
+#f
+  )
+
+(uiform-register 'duotap glgui:uiform-duotap-draw glgui:uiform-duotap-input)
 
 ;; eof

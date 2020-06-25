@@ -61,6 +61,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (include "glgui.scm")
 (include "widget.scm")
 (include "box.scm")
+(include "circle.scm")
 (include "button.scm")
 (include "container.scm")
 (include "keypad.scm")
