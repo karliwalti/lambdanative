@@ -263,12 +263,13 @@ end-of-c-declare
 ;; override gambit main definition for backwards compatibility
 (set! main ln-main)
 
-(define (terminate)
+(define (terminate . nomedia)
   (if app:android? (begin
-    (android-run-mediascanner)
+    (let ((nm (not (if (= (length nomedia) 1) (car nomedia) #f))))
+     (if nm (android-run-mediascanner))
     (android-finish)
-    (let loop ()
-      (if (not android-mediascanner-done?) (begin (thread-sleep! 0.1) (loop))))))
+   (if nm (let loop ()
+     (if (not android-mediascanner-done?) (begin (thread-sleep! 0.1) (loop))))))))
   (if (procedure? hook:terminate) (hook:terminate))
 )
 
