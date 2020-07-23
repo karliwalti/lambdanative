@@ -139,7 +139,7 @@ end-of-c-declare
 ;; Android specials
 (define app:android? (string=? (system-platform) "android"))
 (define android-finish (c-lambda () void "android_finish"))
-(define android-mediascanner-done? #f)
+(define android-mediascanner-done? #t)
 (define (android-run-mediascanner)
   (set! android-mediascanner-done? #f)
   ((c-lambda () void "android_run_mediascanner")))
@@ -263,9 +263,9 @@ end-of-c-declare
 ;; override gambit main definition for backwards compatibility
 (set! main ln-main)
 
-(define (terminate . nomedia)
+(define (terminate . noscanner)
   (if app:android? (begin
-    (let ((nm (not (if (= (length nomedia) 1) (car nomedia) #f))))
+    (let ((nm (not (if (= (length noscanner) 1) (car noscanner) #f))))
      (if nm (android-run-mediascanner))
     (android-finish)
    (if nm (let loop ()

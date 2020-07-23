@@ -144,7 +144,54 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
    )
  ))
 
-(define (download-getfile host path filename . localbuffer)
+
+         (define (download-getfile host path filename)
+  (let ((ret (httpsclient-open host)))
+    (if (> ret 0)
+      (let* ((request (string-append "GET " path " HTTP/1.0\r\nHost: " host "\r\n\r\n"))
+             (status  (httpsclient-send (string->u8vector request))))
+        (download:data-clear!)
+        (let loop ((n 1))
+          (if (fx<= n 0)
+            (begin
+              (httpsclient-close)
+              (let ((fileout (download:split-headerbody-vector (download:data->u8vector))))
+                ;; Status is Success, save file
+                (if (and (string? (car fileout)) (fx> (string-length (car fileout)) 12)
+                         (or (string=? (substring (car fileout) 9 12) "201")
+                             (string=? (substring (car fileout) 9 12) "200")))
+                  (let ((fh (open-output-file (string-append (system-directory) (system-pathseparator) filename))))
+                    (write-subu8vector (cadr fileout) 0 (u8vector-length (cadr fileout)) fh)
+                    (close-output-port fh)
+                    #t
+                  )
+                  ;; Status is Redirect, send new request
+                  (if (and (string? (car fileout)) (fx> (string-length (car fileout)) 12)
+                           (string=? (substring (car fileout) 9 12) "302"))
+                    (let* ((location-start (string-contains (car fileout) "Location: "))
+                           (location-rest (substring (car fileout) location-start (string-length (car fileout))))
+                           (location-stop (string-contains location-rest "\n"))
+                           (location-only (substring location-rest 18 (- location-stop 1)))
+                           (host (substring location-only 0 (string-contains location-only "/")))
+                           (path (substring location-only (string-contains location-only "/") (string-length location-only))))
+                      (download-getfile host path filename))
+                    ;; Status is unknown, return false
+                    #f
+                  )
+                )
+              )
+            )
+           (let ((count (httpsclient-recv download:buf)))
+             (if (> count 0) (download:data-append! download:buf))
+             (loop count))
+          )
+        )
+      )
+      #f
+    )
+  ))
+
+(define (download-getfile-mod host path filename . localbuffer)
   (let ((usebuffer (if (= (length localbuffer) 1) (car localbuffer) #f))
         (ret (httpsclient-open host)))
     (set! download:header #f)
@@ -154,7 +201,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         (log-status "dowload:request: " request)
         (download:data-clear!)
         (let loop ((n 1))
-          (if usebuffer (if (string=? (system-platform) "android") (thread-sleep! 0.00001)))  ;;thread safe operation
+           (if (string=? (system-platform) "android") (thread-sleep! 0.00001));(if usebuffer)  ;;thread safe operation
           (if (fx<= n 0)
             (begin
               (httpsclient-close)
@@ -186,7 +233,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                            (host (substring location-only 0 (string-contains location-only "/")))
                            (path (substring location-only (string-contains location-only "/") (string-length location-only))))
                       (log-status "download:redirect 302. repeat download-getfile call")
-                      (download-getfile host path filename))
+                      (download-getfile-mod host path filename usebuffer))
                     ;; Status is unknown, return false
                     (begin (log-status "download:status unknown" fileout) #f)
                   )
