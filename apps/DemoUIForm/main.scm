@@ -111,7 +111,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     
     ;; Set the fonts
     (glgui-widget-set! gui form 'fnt ascii_18.fnt)
-    (glgui-widget-set! gui form 'smlfnt ascii_14.fnt)
+    (glgui-widget-set! gui form 'smlfnt ascii_16.fnt)
     (glgui-widget-set! gui form 'hdfnt ascii_24.fnt)
     (glgui-widget-set! gui form 'bigfnt ascii_40.fnt)
     
