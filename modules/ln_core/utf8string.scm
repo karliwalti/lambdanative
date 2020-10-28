@@ -75,7 +75,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (define (utf8string->list s) (map integer->utf8char (utf8string->unicode s)))
 
-(define (list->utf8string l) (apply string-append l))
+(define (list->utf8string lst)
+  (define len 0)
+  (for-each (lambda (l) (set! len (fx+ len (string-length l)))) lst)
+  (let ((offset 0)
+        (result (make-string len)))
+    (for-each (lambda (s)
+      (for-each (lambda (c) (string-set! result offset c) (set! offset (fx+ offset 1))) (string->list s))
+    ) lst)
+    result
+  ))
 
 (define (utf8substring s ofs len)
   (list->utf8string (sublist (utf8string->list s) ofs len)))
@@ -257,7 +266,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                           (integer->char (bitwise-ior #x80 (bitwise-and #x3F c)))))
                  (else (log-error "unicode->utf8string: illegal format")))
            ))
-        (else (apply string-append (map unicode->utf8string src)))
+        (else (list->utf8string (map unicode->utf8string src)))
   ))
 
 ;;u8vectors that need unicode conversion
