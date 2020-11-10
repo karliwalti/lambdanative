@@ -41,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (define glgui:slider:vw 54)
 
 (define (glgui:slider-draw g wgt)
-  (define (val->str v) (float->string v 1))
+  (define (val->str v) (let* ((unit (glgui-widget-get g wgt 'unit))(l (string-length (float->string v 3)))) (if (< l 4) (float->string v 1) (float->string v (- l 2))))) ;;WK to do make dependen on unit
   (let* ((x (glgui-widget-get-dyn g wgt 'x))
          (y (glgui-widget-get-dyn g wgt 'y))
          (w (glgui-widget-get-dyn g wgt 'w))
