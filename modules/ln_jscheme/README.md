@@ -1,34 +1,40 @@
 # LNjScheme
 
-This directory contains an app to demo how to use LNjScheme from LN.
-
 LNjScheme allows to call any Java/Android method from
 lambdanative/gambit without additional JNI code.  Either directly or
-within tje UI thread (dispatched asynchronously via `runOnUiThread`).
+within the UI thread (dispatched asynchronously via `runOnUiThread`).
 
 ## Build
 
-1. call `make -f Makefile` in this directory to create `android_jars/LNjScheme.jar`.
-2. use lambdanative make to create the demo app.
+call `make -f Makefile` in this directory to create `android_jars/LNjScheme.jar`.
 
-## Toy With It
+## Usage
 
-To the user, the interesting file is `lnjstest.scm`.  It contains user
-defined code to be run.
+### Procedures
 
-- An example file `lnjstest.scm` is embedded.  Modify it to suit your
-  likings.
-- use `adb push lnjstest.scm /scdard/DemoAndroidLNjScheme/` to install
-- push the button *Load it!* to execute it from the demo app.
+#### (`android-app-class`)
 
-The (initial) example `lnjstest.scm` replaces the content of the app
-with a `LinearLayout` containing a (scaled, since I did not find out
-how to resize it) view of the content followed by a greating, a `Back`
-button and a WebView displaying `lambdanative.org`.  Push the button
-to return to the previews view.
+Returns a *string* naming the Android application class.
 
-NB: Garbage in `lnjstest.scm` will likely break the app.  Use Androids
-App Settings for *force terminate* then.
+#### (`lnjscheme-future` *OBJ*)
+
+Returns a `promise` for an (asynchronous evaluated) result of *OBJ* -
+which must be a *S-expression* valid within jScheme.
+
+This is the general way to call jScheme.  The *S-expression* is
+evaluated via `runOnUiThread` in Android.  The caller is expected to
+wait for the result in a Scheme thread.  The calling procedure (i.e.,
+event handler) **MUST** return to allow Android to dispatch the
+request **before** the returned *promise* is `force`d.
+
+#### (`call-with-lnjscheme-result` *OBJ* **[** *RECEIVER* **]**)
+
+Send *OBJ* to jScheme for evaluation.  *RECEIVER* is a 1ari procedure,
+`force`by default, expecting a *promise*, which is invoked (from
+another callback into lambdanative in the event loop) when the result
+is available.
+
+NOTE: This is a low level procedure, which *MAY* change.
 
 # History
 
@@ -40,41 +46,27 @@ Jscheme version 1.4, the last version that I released (in April
 
 (NB: There is another thing going by the name Jscheme, which was
 extented by a community until 2006.  This version grew beyond the
-features, complexity and size which make the Pter Norvigs version
-interesting as a strating point.)
+features, complexity and size which make the Peter Norvigs version
+interesting as a starting point.)
 
 Jscheme 1.4 however lacks a few features, notably the ability supply
 arguments to constructors.  Therefore a derivative was required for
 LN.  In accordance with the stated license for Jscheme it got a new
 name.
 
+Jörg F. Wittenberger (a.k.a. 08/15 -- known als 0-8-15 on githug)
+initially added those features (C) 2019.
+
 ## Changes
 
 1. Baseline: unpacked the sources from `jscheme-source.jar` into
    subdirectory `LNjScheme`.
-2. Changed package name to
-
-LNjScheme and added Makefile.
+2. Changed package name to LNjScheme and added Makefile.
 3. Refined errors raised from application of Java methods.
 4. Pulled some code from the community version to support constructors with arguments.
 5. Copied glue code from experimental branch and rename identifiers.
 
 # Issues
-
-## Split Into Module and Demo App
-
-The LNjScheme core stuff would better be a reusable module as it might
-simplify the build script dance around e.g. `hybridapp`s.
-Issues/missing:
-1. how to compile the `.jar` during build
-2. install the `.jar`
-3. handle the EVENT_LNjSchemeRETURN (i.e. #126) in core (see
-   `main.scm` around line 127).
-4. discover why exactly `##thread-heartbeat` of `gambit` fame was
-   disabled and clean up such that Gambit threads still work as
-   naively expected.  (Maybe this solve the performance issue
-   observed.)
-
 
 ## Numbers
 

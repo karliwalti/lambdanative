@@ -26,7 +26,7 @@ compile_payload_scm()
     done
     # -------
     # generate list of source (scheme) files
-    scm_coremodules=" syntax-case config eventloop ln_core ln_glcore "
+    scm_coremodules=" syntax-case config eventloop ln_core ln_glcore ln_glgui "
     scm_coresrcs=
     scm_auxsrcs=
     for m in $modules; do
@@ -56,6 +56,7 @@ compile_payload_scm()
     # prep the compiler options
     if [ $SYS_MODE = "debug" ]; then
       scm_opts="(declare (standard-bindings)(extended-bindings)(debug)(debug-location))"
+      scm_opts="${scm_opts}(define-cond-expand-feature debug)"
       payload_cdefs="$payload_cdefs -D___LIBRARY -D___PRIMAL"
     else
       scm_opts="(declare (block)(not safe)(standard-bindings)(extended-bindings))"
@@ -148,7 +149,7 @@ compile_payload_scm()
     scm_lctgt=`echo "$scm_ctgt" | sed 's/\.c$/\_\.c/'`
     scm_lotgt=`echo "$scm_lctgt" | sed 's/c$/o/'`
     if [ $scm_link_dirty = yes ] || [ ! -f $scm_lotgt ]; then
-      vecho "$SYS_GSC -link $scm_csrcs"
+      vecho "$SYS_GSC -warnings -link $scm_csrcs"
       scm_link_here=`pwd`
       cd `dirname $scm_lctgt`
       $SYS_GSC -link $scm_csrcs
